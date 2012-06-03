@@ -49,58 +49,21 @@
   }
   return this.require.define;
 }).call(this)({"app": function(exports, require, module) {(function() {
-  var __slice = Array.prototype.slice;
 
   module.exports = function() {
-    var constrainDistance, cs, draw, makePoint, p1, p2, p3;
-    cs = require("constraintSystem")();
-    makePoint = function() {
-      return [cs.cell(Math.random()), cs.cell(Math.random())];
-    };
-    constrainDistance = function(p1, p2, d) {
-      var error;
-      error = function(x1, y1, x2, y2) {
-        var dist, e, v;
-        v = numeric['-']([x1, y1], [x2, y2]);
-        dist = Math.sqrt(numeric.dot(v, v));
-        e = dist - d;
-        return e * e;
-      };
-      return cs.constraint.apply(cs, [error].concat(__slice.call(p1.concat(p2))));
-    };
-    p1 = makePoint();
-    p2 = makePoint();
-    p3 = makePoint();
-    constrainDistance(p1, p2, 100);
-    constrainDistance(p2, p3, 200);
-    p1[0].value = 0;
-    p1[0].isConstant = true;
-    p1[1].value = 0;
-    p1[1].isConstant = true;
-    cs.solve();
-    console.log(p1);
-    console.log(p2);
-    draw = function() {
-      var canvas, ctx;
-      canvas = document.getElementById("c");
-      ctx = canvas.getContext("2d");
-      ctx.setTransform(1, 0, 0, 1, 500, 500);
-      ctx.clearRect(-500, -500, 1000, 1000);
-      ctx.beginPath();
-      ctx.arc(p1[0].value, p1[1].value, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(p2[0].value, p2[1].value, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(p3[0].value, p3[1].value, 10, 0, Math.PI * 2);
-      return ctx.fill();
-    };
+    var model, p1, p2, p3;
+    model = require("model");
+    p1 = model.makePoint(0, 0);
+    p2 = model.makePoint(100, 0);
+    p3 = model.makePoint(300, 0);
+    p1.setFixed(true);
+    model.makeLine(p1, p2).setFixed(true);
+    model.makeLine(p2, p3).setFixed(true);
     return document.onmousemove = function(e) {
-      p1[0].value = e.clientX - 500;
-      p1[1].value = e.clientY - 500;
-      cs.solve();
-      return draw();
+      p1.p[0].value = e.clientX - 500;
+      p1.p[1].value = e.clientY - 500;
+      model.solve();
+      return require("render")();
     };
   };
 
@@ -204,6 +167,97 @@
   };
 
   module.exports = constraintSystem;
+
+}).call(this);
+}, "model": function(exports, require, module) {(function() {
+  var cs, lines, makeLine, makePoint, points;
+
+  points = [];
+
+  lines = [];
+
+  cs = require("constraintSystem")();
+
+  makePoint = function(x, y) {
+    var o;
+    o = {};
+    o.p = [cs.cell(x), cs.cell(y)];
+    o.fixed = false;
+    o.setFixed = function(fixed) {
+      o.fixed = fixed;
+      return o.p.forEach(function(cell) {
+        return cell.isConstant = fixed;
+      });
+    };
+    points.push(o);
+    return o;
+  };
+
+  makeLine = function(p1, p2) {
+    var constraint, distance, o;
+    o = {};
+    o.p1 = p1;
+    o.p2 = p2;
+    o.fixed = false;
+    constraint = void 0;
+    distance = function() {
+      var x1, x2, y1, y2;
+      x1 = o.p1.p[0].value;
+      y1 = o.p1.p[1].value;
+      x2 = o.p2.p[0].value;
+      y2 = o.p2.p[1].value;
+      return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+    };
+    o.setFixed = function(fixed) {
+      var error, fixedDistance;
+      o.fixed = fixed;
+      if (fixed) {
+        fixedDistance = distance();
+        error = function(x1, y1, x2, y2) {
+          var d, e;
+          d = Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+          e = fixedDistance - d;
+          return e * e;
+        };
+        return constraint = cs.constraint(error, o.p1.p[0], o.p1.p[1], o.p2.p[0], o.p2.p[1]);
+      } else {
+        return constraint.remove();
+      }
+    };
+    lines.push(o);
+    return o;
+  };
+
+  module.exports = {
+    makePoint: makePoint,
+    makeLine: makeLine,
+    solve: cs.solve,
+    points: points,
+    lines: lines
+  };
+
+}).call(this);
+}, "render": function(exports, require, module) {(function() {
+
+  module.exports = function() {
+    var canvas, ctx, model;
+    model = require("model");
+    canvas = document.getElementById("c");
+    ctx = canvas.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 500, 500);
+    ctx.clearRect(-500, -500, 1000, 1000);
+    model.points.forEach(function(point) {
+      ctx.beginPath();
+      ctx.arc(point.p[0].value, point.p[1].value, 4, 0, Math.PI * 2);
+      return ctx.fill();
+    });
+    return model.lines.forEach(function(line) {
+      ctx.beginPath();
+      ctx.moveTo(line.p1.p[0].value, line.p1.p[1].value);
+      ctx.lineTo(line.p2.p[0].value, line.p2.p[1].value);
+      return ctx.stroke();
+    });
+  };
 
 }).call(this);
 }});
