@@ -51,19 +51,53 @@
 }).call(this)({"app": function(exports, require, module) {(function() {
 
   module.exports = function() {
-    var model, p1, p2, p3;
-    model = require("model");
-    p1 = model.makePoint(0, 0);
-    p2 = model.makePoint(100, 0);
-    p3 = model.makePoint(300, 0);
-    p1.setFixed(true);
-    model.makeLine(p1, p2).setFixed(true);
-    model.makeLine(p2, p3).setFixed(true);
+    var find, g, l1, l2, makeConstraint, makeLine, makePoint, makeValue, mouseOn, p1, p2, p3, render;
+    g = require("./graph");
+    render = require("./render");
+    find = require("./find");
+    makeValue = function(v) {
+      return g.node("value", {
+        v: v,
+        fixed: false
+      });
+    };
+    makeConstraint = function(f, values) {
+      var constraint;
+      constraint = g.node("constraint", {
+        f: f,
+        isHard: true,
+        argLength: values.length
+      });
+      values.forEach(function(value, i) {
+        return constraint.set("arg" + i, value);
+      });
+      return constraint;
+    };
+    makePoint = function(x, y) {
+      return g.node("point", {
+        x: makeValue(x),
+        y: makeValue(y)
+      });
+    };
+    makeLine = function(p1, p2) {
+      return g.node("line", {
+        p1: p1,
+        p2: p2
+      });
+    };
+    mouseOn = false;
+    p1 = makePoint(100, 100);
+    p2 = makePoint(200, 100);
+    p3 = makePoint(300, 200);
+    l1 = makeLine(p1, p2);
+    l2 = makeLine(p2, p3);
+    render(g, mouseOn);
     return document.onmousemove = function(e) {
-      p1.p[0].value = e.clientX - 500;
-      p1.p[1].value = e.clientY - 500;
-      model.solve();
-      return require("render")();
+      var x, y;
+      x = e.clientX;
+      y = e.clientY;
+      mouseOn = find(g, x, y);
+      return render(g, mouseOn);
     };
   };
 
@@ -116,7 +150,7 @@
     minimize = function() {
       var c, cells, errorFunction;
       errorFunction = arguments[0], cells = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-      c = constraint.apply(null, [errorFunction].concat(__slice.call(cells)));
+      c = makeConstraint.apply(null, [errorFunction].concat(__slice.call(cells)));
       c.isHard = false;
       return c;
     };
@@ -169,92 +203,349 @@
   module.exports = constraintSystem;
 
 }).call(this);
-}, "model": function(exports, require, module) {(function() {
-  var cs, lines, makeLine, makePoint, points;
+}, "find": function(exports, require, module) {(function() {
+  var threshold;
 
-  points = [];
+  threshold = 10;
 
-  lines = [];
-
-  cs = require("constraintSystem")();
-
-  makePoint = function(x, y) {
-    var o;
-    o = {};
-    o.p = [cs.cell(x), cs.cell(y)];
-    o.fixed = false;
-    o.setFixed = function(fixed) {
-      o.fixed = fixed;
-      return o.p.forEach(function(cell) {
-        return cell.isConstant = fixed;
-      });
-    };
-    points.push(o);
-    return o;
+  module.exports = function(g, x, y) {
+    var closest, minDistance;
+    minDistance = Infinity;
+    closest = false;
+    g.all("point").forEach(function(point) {
+      var d, px, py;
+      px = point.get("x").get("v");
+      py = point.get("y").get("v");
+      d = Math.sqrt((px - x) * (px - x) + (py - y) * (py - y));
+      if (d < minDistance) {
+        minDistance = d;
+        return closest = point;
+      }
+    });
+    if (minDistance < threshold) {
+      return closest;
+    } else {
+      return false;
+    }
   };
 
-  makeLine = function(p1, p2) {
-    var constraint, distance, o;
-    o = {};
-    o.p1 = p1;
-    o.p2 = p2;
-    o.fixed = false;
-    constraint = void 0;
-    distance = function() {
-      var x1, x2, y1, y2;
-      x1 = o.p1.p[0].value;
-      y1 = o.p1.p[1].value;
-      x2 = o.p2.p[0].value;
-      y2 = o.p2.p[1].value;
-      return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+}).call(this);
+}, "graph": function(exports, require, module) {(function() {
+  var all, idCount, indexedTable, isNode, links, makeId, makeNode, nodes,
+    __slice = Array.prototype.slice,
+    __hasProp = Object.prototype.hasOwnProperty;
+
+  indexedTable = require("./indexedTable");
+
+  idCount = 0;
+
+  makeId = function() {
+    return "" + idCount++;
+  };
+
+  nodes = indexedTable("node", "type");
+
+  links = indexedTable("node", "target");
+
+  isNode = function(potentialNode) {
+    return (potentialNode != null ? typeof potentialNode.id === "function" ? potentialNode.id() : void 0 : void 0) != null;
+  };
+
+  makeNode = function(type, initialSet) {
+    var attributes, id, node;
+    node = {};
+    id = makeId();
+    attributes = {};
+    node.id = node.toString = function() {
+      return id;
     };
-    o.setFixed = function(fixed) {
-      var error, fixedDistance;
-      o.fixed = fixed;
-      if (fixed) {
-        fixedDistance = distance();
-        error = function(x1, y1, x2, y2) {
-          var d, e;
-          d = Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
-          e = fixedDistance - d;
-          return e * e;
-        };
-        return constraint = cs.constraint(error, o.p1.p[0], o.p1.p[1], o.p2.p[0], o.p2.p[1]);
-      } else {
-        return constraint.remove();
+    node.type = function() {
+      return type;
+    };
+    node.get = function(key) {
+      return attributes[key];
+    };
+    node.set = function(key, value) {
+      var k, v;
+      if (typeof key === "object") {
+        for (k in key) {
+          v = key[k];
+          node.set(k, v);
+        }
+        return;
+      }
+      links.remove({
+        node: node,
+        key: key
+      });
+      attributes[key] = value;
+      if (isNode(value)) {
+        return links.add({
+          node: node,
+          target: value,
+          key: key,
+          type: node.type()
+        });
       }
     };
-    lines.push(o);
-    return o;
+    node.attributes = function() {
+      return attributes;
+    };
+    node.backLinks = function(type, key) {
+      var query;
+      query = {
+        target: node
+      };
+      if (type != null) query.type = type;
+      if (key != null) query.key = key;
+      return links.find(query).map(function(link) {
+        return link.node;
+      });
+    };
+    node.remove = function() {
+      nodes.remove({
+        node: node
+      });
+      links.remove({
+        node: node
+      });
+      return node.backLinks().forEach(function(n) {
+        return n.remove();
+      });
+    };
+    node.merge = function() {
+      var mergedNodes;
+      mergedNodes = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      mergedNodes.forEach(function(n) {
+        var key, value, _ref, _results;
+        _ref = n.attributes();
+        _results = [];
+        for (key in _ref) {
+          if (!__hasProp.call(_ref, key)) continue;
+          value = _ref[key];
+          if (isNode(value)) {
+            _results.push(mergeNodes(node.get(key), value));
+          } else {
+            _results.push(void 0);
+          }
+        }
+        return _results;
+      });
+      mergedNodes.forEach(function(n) {
+        return links.find({
+          target: n
+        }).forEach(function(link) {
+          return link.node.set(link.key, node);
+        });
+      });
+      return mergedNodes.forEach(function(n) {
+        return n.remove();
+      });
+    };
+    if (initialSet) node.set(initialSet);
+    nodes.add({
+      node: node,
+      type: node.type()
+    });
+    return node;
+  };
+
+  all = function(type) {
+    var query;
+    query = {};
+    if (type != null) query.type = type;
+    return nodes.find(query).map(function(res) {
+      return res.node;
+    });
   };
 
   module.exports = {
-    makePoint: makePoint,
-    makeLine: makeLine,
-    solve: cs.solve,
-    points: points,
-    lines: lines
+    node: makeNode,
+    isNode: isNode,
+    all: all
+  };
+
+}).call(this);
+}, "indexedTable": function(exports, require, module) {(function() {
+  var autovivify,
+    __slice = Array.prototype.slice,
+    __hasProp = Object.prototype.hasOwnProperty;
+
+  autovivify = function() {
+    var hash, keys, ret;
+    hash = arguments[0], keys = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+    ret = hash;
+    keys.forEach(function(key) {
+      if (ret[key] != null) {
+        return ret = ret[key];
+      } else {
+        return ret = ret[key] = {};
+      }
+    });
+    return ret;
+  };
+
+  module.exports = function() {
+    var add, find, idCount, index, indexKeys, makeId, match, remove, table;
+    indexKeys = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+    idCount = 0;
+    makeId = function() {
+      return "" + idCount++;
+    };
+    table = {};
+    index = {};
+    add = function(item) {
+      var id;
+      id = makeId();
+      table[id] = item;
+      return indexKeys.forEach(function(indexKey) {
+        return autovivify(index, indexKey, item[indexKey])[id] = item;
+      });
+    };
+    match = function(needle, item) {
+      var key, ret, value;
+      ret = true;
+      for (key in needle) {
+        if (!__hasProp.call(needle, key)) continue;
+        value = needle[key];
+        if (item[key] !== value) ret = false;
+      }
+      return ret;
+    };
+    find = function(needle, returnIds) {
+      var id, item, key, ret, search, value;
+      if (needle == null) needle = {};
+      if (returnIds == null) returnIds = false;
+      search = table;
+      for (key in needle) {
+        if (!__hasProp.call(needle, key)) continue;
+        value = needle[key];
+        if (index[key]) search = index[key][value];
+      }
+      ret = [];
+      for (id in search) {
+        if (!__hasProp.call(search, id)) continue;
+        item = search[id];
+        if (match(needle, item)) {
+          if (returnIds) {
+            ret.push(id);
+          } else {
+            ret.push(item);
+          }
+        }
+      }
+      return ret;
+    };
+    remove = function(needle) {
+      var ids;
+      if (needle == null) needle = {};
+      ids = find(needle, true);
+      return ids.forEach(function(id) {
+        indexKeys.forEach(function(indexKey) {
+          return delete autovivify(index, indexKey, table[id][indexKey])[id];
+        });
+        return delete table[id];
+      });
+    };
+    return {
+      add: add,
+      find: function(needle) {
+        return find(needle);
+      },
+      remove: remove
+    };
+  };
+
+}).call(this);
+}, "model": function(exports, require, module) {(function() {
+
+  module.exports = function(cs) {
+    var lines, makeLine, makePoint, mergePoints, points;
+    points = [];
+    lines = [];
+    makePoint = function(x, y) {
+      var o;
+      o = {};
+      o.p = [cs.cell(x), cs.cell(y)];
+      o.fixed = false;
+      o.setFixed = function(fixed) {
+        o.fixed = fixed;
+        return o.p.forEach(function(cell) {
+          return cell.isConstant = fixed;
+        });
+      };
+      points.push(o);
+      return o;
+    };
+    makeLine = function(p1, p2) {
+      var constraint, distance, o;
+      o = {};
+      o.p1 = p1;
+      o.p2 = p2;
+      o.fixed = false;
+      constraint = void 0;
+      distance = function() {
+        var x1, x2, y1, y2;
+        x1 = o.p1.p[0].value;
+        y1 = o.p1.p[1].value;
+        x2 = o.p2.p[0].value;
+        y2 = o.p2.p[1].value;
+        return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+      };
+      o.setFixed = function(fixed) {
+        var error, fixedDistance;
+        o.fixed = fixed;
+        if (fixed) {
+          fixedDistance = distance();
+          error = function(x1, y1, x2, y2) {
+            var d, e;
+            d = Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+            e = fixedDistance - d;
+            return e * e;
+          };
+          return constraint = cs.constraint(error, o.p1.p[0], o.p1.p[1], o.p2.p[0], o.p2.p[1]);
+        } else {
+          return constraint.remove();
+        }
+      };
+      lines.push(o);
+      return o;
+    };
+    mergePoints = function(p1, p2) {};
+    return {
+      makePoint: makePoint,
+      makeLine: makeLine,
+      points: points,
+      lines: lines
+    };
   };
 
 }).call(this);
 }, "render": function(exports, require, module) {(function() {
 
-  module.exports = function() {
-    var canvas, ctx, model;
-    model = require("model");
+  module.exports = function(g, mouseOn) {
+    var canvas, ctx;
     canvas = document.getElementById("c");
     ctx = canvas.getContext("2d");
-    ctx.setTransform(1, 0, 0, 1, 500, 500);
-    ctx.clearRect(-500, -500, 1000, 1000);
-    model.points.forEach(function(point) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    g.all("point").forEach(function(point) {
+      var x, y;
+      x = point.get("x").get("v");
+      y = point.get("y").get("v");
       ctx.beginPath();
-      ctx.arc(point.p[0].value, point.p[1].value, 4, 0, Math.PI * 2);
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = mouseOn === point ? "#f00" : "#000";
       return ctx.fill();
     });
-    return model.lines.forEach(function(line) {
+    return g.all("line").forEach(function(line) {
+      var x1, x2, y1, y2;
+      x1 = line.get("p1").get("x").get("v");
+      y1 = line.get("p1").get("y").get("v");
+      x2 = line.get("p2").get("x").get("v");
+      y2 = line.get("p2").get("y").get("v");
       ctx.beginPath();
-      ctx.moveTo(line.p1.p[0].value, line.p1.p[1].value);
-      ctx.lineTo(line.p2.p[0].value, line.p2.p[1].value);
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
       return ctx.stroke();
     });
   };

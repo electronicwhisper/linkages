@@ -38,7 +38,7 @@ constraintSystem = () ->
   
   # sugar to make a soft constraint
   minimize = (errorFunction, cells...) ->
-    c = constraint(errorFunction, cells...)
+    c = makeConstraint(errorFunction, cells...)
     c.isHard = false
     return c
   

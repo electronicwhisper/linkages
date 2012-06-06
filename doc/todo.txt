@@ -1,0 +1,2 @@
+Render fixed/unfixed points and lines appropriately
+Make a point merge function
