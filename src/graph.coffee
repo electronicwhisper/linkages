@@ -29,16 +29,17 @@ makeNode = (type, initialSet) ->
     if typeof key == "object"
       for k, v of key
         node.set(k, v)
-      return
+    else
+      # remove old links
+      links.remove({node: node, key: key})
+      
+      attributes[key] = value
+      
+      # add new link (if new value is a node)
+      if isNode(value)
+        links.add({node: node, target: value, key: key, type: node.type()})
     
-    # remove old links
-    links.remove({node: node, key: key})
-    
-    attributes[key] = value
-    
-    # add new link (if new value is a node)
-    if isNode(value)
-      links.add({node: node, target: value, key: key, type: node.type()})
+    return node # for chaining
   
   node.attributes = () -> attributes # TODO: this should be a shallow copy
   

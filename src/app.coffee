@@ -3,9 +3,10 @@ module.exports = () ->
   g = require("./graph")
   render = require("./render")
   find = require("./find")
+  solve = require("./solve")
   
   makeValue = (v) ->
-    g.node("value", {v: v, fixed: false})
+    g.node("value", {v: v, isConstant: false})
   
   makeConstraint = (f, values) ->
     constraint = g.node("constraint", {f: f, isHard: true, argLength: values.length})
@@ -21,7 +22,10 @@ module.exports = () ->
   
   
   mouseOn = false # keep track of what point or line the mouse is on (or pretty close to at least)
-  
+  mousePos = {
+    x: makeValue(0).set("isConstant", true)
+    y: makeValue(0).set("isConstant", true)
+  }
   
   
   
@@ -32,17 +36,34 @@ module.exports = () ->
   l1 = makeLine(p1, p2)
   l2 = makeLine(p2, p3)
   
+  c = makeConstraint(((x) ->
+      e = x[0] - x[1]
+      e * e
+    ), [p2.get("x"), p3.get("x")])
   
-  
+  makeConstraint(((x) ->
+    p = x[0]-x[2]
+    q = x[1]-x[3]
+    e = p*p + q*q
+    return e
+  ), [p1.get("x"), p1.get("y"), mousePos.x, mousePos.y]).set("isHard", false)
   
   
   
   
   render(g, mouseOn)
-  document.onmousemove = (e) ->
+  window.onmousemove = (e) ->
     x = e.clientX
     y = e.clientY
+    mousePos.x.set("v", x)
+    mousePos.y.set("v", y)
+    
+    
+    
+    solve(g)
+    
     mouseOn = find(g, x, y)
+    
     render(g, mouseOn)
   
   

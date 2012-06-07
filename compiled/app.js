@@ -51,14 +51,15 @@
 }).call(this)({"app": function(exports, require, module) {(function() {
 
   module.exports = function() {
-    var find, g, l1, l2, makeConstraint, makeLine, makePoint, makeValue, mouseOn, p1, p2, p3, render;
+    var c, find, g, l1, l2, makeConstraint, makeLine, makePoint, makeValue, mouseOn, mousePos, p1, p2, p3, render, solve;
     g = require("./graph");
     render = require("./render");
     find = require("./find");
+    solve = require("./solve");
     makeValue = function(v) {
       return g.node("value", {
         v: v,
-        fixed: false
+        isConstant: false
       });
     };
     makeConstraint = function(f, values) {
@@ -86,16 +87,35 @@
       });
     };
     mouseOn = false;
+    mousePos = {
+      x: makeValue(0).set("isConstant", true),
+      y: makeValue(0).set("isConstant", true)
+    };
     p1 = makePoint(100, 100);
     p2 = makePoint(200, 100);
     p3 = makePoint(300, 200);
     l1 = makeLine(p1, p2);
     l2 = makeLine(p2, p3);
+    c = makeConstraint((function(x) {
+      var e;
+      e = x[0] - x[1];
+      return e * e;
+    }), [p2.get("x"), p3.get("x")]);
+    makeConstraint((function(x) {
+      var e, p, q;
+      p = x[0] - x[2];
+      q = x[1] - x[3];
+      e = p * p + q * q;
+      return e;
+    }), [p1.get("x"), p1.get("y"), mousePos.x, mousePos.y]).set("isHard", false);
     render(g, mouseOn);
-    return document.onmousemove = function(e) {
+    return window.onmousemove = function(e) {
       var x, y;
       x = e.clientX;
       y = e.clientY;
+      mousePos.x.set("v", x);
+      mousePos.y.set("v", y);
+      solve(g);
       mouseOn = find(g, x, y);
       return render(g, mouseOn);
     };
@@ -272,21 +292,22 @@
           v = key[k];
           node.set(k, v);
         }
-        return;
-      }
-      links.remove({
-        node: node,
-        key: key
-      });
-      attributes[key] = value;
-      if (isNode(value)) {
-        return links.add({
+      } else {
+        links.remove({
           node: node,
-          target: value,
-          key: key,
-          type: node.type()
+          key: key
         });
+        attributes[key] = value;
+        if (isNode(value)) {
+          links.add({
+            node: node,
+            target: value,
+            key: key,
+            type: node.type()
+          });
+        }
       }
+      return node;
     };
     node.attributes = function() {
       return attributes;
@@ -548,6 +569,72 @@
       ctx.lineTo(x2, y2);
       return ctx.stroke();
     });
+  };
+
+}).call(this);
+}, "solve": function(exports, require, module) {(function() {
+  var constraintValues, objValues,
+    __hasProp = Object.prototype.hasOwnProperty;
+
+  constraintValues = function(constraint) {
+    var i, ret, _ref;
+    ret = [];
+    for (i = 0, _ref = constraint.get("argLength"); 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+      ret.push(constraint.get("arg" + i));
+    }
+    return ret;
+  };
+
+  objValues = function(o) {
+    var k, ret, v;
+    ret = [];
+    for (k in o) {
+      if (!__hasProp.call(o, k)) continue;
+      v = o[k];
+      ret.push(v);
+    }
+    return ret;
+  };
+
+  module.exports = function(g) {
+    var initial, objective, result, solveFor;
+    solveFor = {};
+    g.all("constraint").forEach(function(constraint) {
+      return constraintValues(constraint).forEach(function(value) {
+        if (!value.get("isConstant")) return solveFor[value.id()] = value;
+      });
+    });
+    solveFor = objValues(solveFor);
+    if (solveFor.length === 0) return;
+    initial = solveFor.map(function(value) {
+      return value.get("v");
+    });
+    objective = function(x) {
+      var totalError;
+      totalError = 0;
+      g.all("constraint").forEach(function(constraint) {
+        var args, error;
+        args = constraintValues(constraint).map(function(value) {
+          var i;
+          i = solveFor.indexOf(value);
+          if (i === -1) {
+            return value.get("v");
+          } else {
+            return x[i];
+          }
+        });
+        error = constraint.get("f")(args);
+        if (constraint.get("isHard")) error *= 100;
+        return totalError += error;
+      });
+      return totalError;
+    };
+    result = numeric.uncmin(objective, initial);
+    if (result.solution) {
+      return solveFor.forEach(function(value, i) {
+        return value.set("v", result.solution[i]);
+      });
+    }
   };
 
 }).call(this);
