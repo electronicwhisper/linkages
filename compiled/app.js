@@ -94,9 +94,12 @@
       y: makeValue(0).set("isConstant", true)
     });
     (function() {
-      var ps;
+      var canvas, height, ps, width;
+      canvas = document.getElementById("c");
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
       ps = [0, 1, 2, 3, 4].map(function() {
-        return makePoint(Math.random() * 500, Math.random() * 500);
+        return makePoint(Math.random() * width, Math.random() * height);
       });
       return ps.forEach(function(p1, i) {
         return ps.slice(i + 1, 5).forEach(function(p2) {
@@ -141,7 +144,7 @@
         return dragging = false;
       }
     };
-    return window.onclick = function(e) {
+    window.onclick = function(e) {
       var constraint, d, line, p1, p1x, p1y, p2, p2x, p2y;
       if (g.isNode(mouseOn, "line")) {
         line = mouseOn;
@@ -162,6 +165,13 @@
         }
         return render(g, mouseOn);
       }
+    };
+    return window.onresize = function(e) {
+      var canvas, height, width;
+      canvas = document.getElementById("c");
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      return render(g, mouseOn);
     };
   };
 

@@ -26,9 +26,12 @@ module.exports = () ->
   mousePos = g.node("pseudoPoint", {x: makeValue(0).set("isConstant", true), y: makeValue(0).set("isConstant", true)})
   
   
-  
   do ->
-    ps = [0...5].map () -> makePoint(Math.random() * 500, Math.random() * 500)
+    canvas = document.getElementById("c")
+    width = canvas.width = window.innerWidth
+    height = canvas.height = window.innerHeight
+    
+    ps = [0...5].map () -> makePoint(Math.random() * width, Math.random() * height)
     ps.forEach (p1, i) ->
       ps[i+1...5].forEach (p2) ->
         makeLine(p1, p2)
@@ -101,3 +104,9 @@ module.exports = () ->
         line.set("constrained", constraint)
       
       render(g, mouseOn)
+  
+  window.onresize = (e) ->
+    canvas = document.getElementById("c")
+    width = canvas.width = window.innerWidth
+    height = canvas.height = window.innerHeight
+    render(g, mouseOn)
