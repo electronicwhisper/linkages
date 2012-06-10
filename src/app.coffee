@@ -27,12 +27,11 @@ module.exports = () ->
   
   
   
-  p1 = makePoint(100, 100)
-  p2 = makePoint(200, 100)
-  p3 = makePoint(300, 200)
-  
-  l1 = makeLine(p1, p2)
-  l2 = makeLine(p2, p3)
+  do ->
+    ps = [0...5].map () -> makePoint(Math.random() * 500, Math.random() * 500)
+    ps.forEach (p1, i) ->
+      ps[i+1...5].forEach (p2) ->
+        makeLine(p1, p2)
   
   
   

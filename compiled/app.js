@@ -51,7 +51,7 @@
 }).call(this)({"app": function(exports, require, module) {(function() {
 
   module.exports = function() {
-    var constraints, dragging, find, g, l1, l2, makeConstraint, makeLine, makePoint, makeValue, mouseOn, mousePos, p1, p2, p3, render, solve, util;
+    var constraints, dragging, find, g, makeConstraint, makeLine, makePoint, makeValue, mouseOn, mousePos, render, solve, util;
     g = require("./graph");
     render = require("./render");
     find = require("./find");
@@ -93,11 +93,17 @@
       x: makeValue(0).set("isConstant", true),
       y: makeValue(0).set("isConstant", true)
     });
-    p1 = makePoint(100, 100);
-    p2 = makePoint(200, 100);
-    p3 = makePoint(300, 200);
-    l1 = makeLine(p1, p2);
-    l2 = makeLine(p2, p3);
+    (function() {
+      var ps;
+      ps = [0, 1, 2, 3, 4].map(function() {
+        return makePoint(Math.random() * 500, Math.random() * 500);
+      });
+      return ps.forEach(function(p1, i) {
+        return ps.slice(i + 1, 5).forEach(function(p2) {
+          return makeLine(p1, p2);
+        });
+      });
+    })();
     constraints = {};
     constraints.setDistance = function(p1, p2, distance) {
       return makeConstraint((function(_arg) {
@@ -136,7 +142,7 @@
       }
     };
     return window.onclick = function(e) {
-      var constraint, d, line, p1x, p1y, p2x, p2y;
+      var constraint, d, line, p1, p1x, p1y, p2, p2x, p2y;
       if (g.isNode(mouseOn, "line")) {
         line = mouseOn;
         constraint = line.get("constrained");
