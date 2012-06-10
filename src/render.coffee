@@ -4,14 +4,6 @@ module.exports = (g, mouseOn) ->
   
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   
-  g.all("point").forEach (point) ->
-    x = point.get("x").get("v")
-    y = point.get("y").get("v")
-    ctx.beginPath()
-    ctx.arc(x, y, 4, 0, Math.PI*2)
-    ctx.fillStyle = if mouseOn == point then "#f00" else "#000"
-    ctx.fill()
-  
   g.all("line").forEach (line) ->
     x1 = line.get("p1").get("x").get("v")
     y1 = line.get("p1").get("y").get("v")
@@ -21,3 +13,11 @@ module.exports = (g, mouseOn) ->
     ctx.moveTo(x1, y1)
     ctx.lineTo(x2, y2)
     ctx.stroke()
+  
+  g.all("point").forEach (point) ->
+    x = point.get("x").get("v")
+    y = point.get("y").get("v")
+    ctx.beginPath()
+    ctx.arc(x, y, 4, 0, Math.PI*2)
+    ctx.fillStyle = if mouseOn == point then "#f00" else "#000"
+    ctx.fill()

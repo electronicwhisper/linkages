@@ -51,7 +51,7 @@
 }).call(this)({"app": function(exports, require, module) {(function() {
 
   module.exports = function() {
-    var c, find, g, l1, l2, makeConstraint, makeLine, makePoint, makeValue, mouseOn, mousePos, p1, p2, p3, render, solve;
+    var constraints, dragging, find, g, l1, l2, makeConstraint, makeLine, makePoint, makeValue, mouseOn, mousePos, p1, p2, p3, render, solve;
     g = require("./graph");
     render = require("./render");
     find = require("./find");
@@ -87,37 +87,54 @@
       });
     };
     mouseOn = false;
-    mousePos = {
+    mousePos = g.node("pseudoPoint", {
       x: makeValue(0).set("isConstant", true),
       y: makeValue(0).set("isConstant", true)
-    };
+    });
     p1 = makePoint(100, 100);
     p2 = makePoint(200, 100);
     p3 = makePoint(300, 200);
     l1 = makeLine(p1, p2);
     l2 = makeLine(p2, p3);
-    c = makeConstraint((function(x) {
-      var e;
-      e = x[0] - x[1];
-      return e * e;
-    }), [p2.get("x"), p3.get("x")]);
-    makeConstraint((function(x) {
-      var e, p, q;
-      p = x[0] - x[2];
-      q = x[1] - x[3];
-      e = p * p + q * q;
-      return e;
-    }), [p1.get("x"), p1.get("y"), mousePos.x, mousePos.y]).set("isHard", false);
+    constraints = {};
+    constraints.setDistance = function(p1, p2, distance) {
+      return makeConstraint((function(_arg) {
+        var dx, dy, e, p1x, p1y, p2x, p2y;
+        p1x = _arg[0], p1y = _arg[1], p2x = _arg[2], p2y = _arg[3];
+        dx = p1x - p2x;
+        dy = p1y - p2y;
+        e = Math.sqrt(dx * dx + dy * dy) - distance;
+        return e * e;
+      }), [p1.get("x"), p1.get("y"), p2.get("x"), p2.get("y")]);
+    };
+    constraints.moveWithMouse = function(p) {
+      return constraints.setDistance(p, mousePos, 0).set("isHard", false);
+    };
+    constraints.setDistance(p2, p3, 100);
+    dragging = false;
     render(g, mouseOn);
-    return window.onmousemove = function(e) {
+    window.onmousemove = function(e) {
       var x, y;
       x = e.clientX;
       y = e.clientY;
-      mousePos.x.set("v", x);
-      mousePos.y.set("v", y);
+      mousePos.get("x").set("v", x);
+      mousePos.get("y").set("v", y);
       solve(g);
       mouseOn = find(g, x, y);
       return render(g, mouseOn);
+    };
+    window.onmousedown = function(e) {
+      if (!dragging && g.isNode(mouseOn, "point")) {
+        return dragging = {
+          mouseConstraint: constraints.moveWithMouse(mouseOn)
+        };
+      }
+    };
+    return window.onmouseup = function(e) {
+      if (dragging) {
+        dragging.mouseConstraint.remove();
+        return dragging = false;
+      }
     };
   };
 
@@ -166,8 +183,14 @@
 
   links = indexedTable("node", "target");
 
-  isNode = function(potentialNode) {
-    return (potentialNode != null ? typeof potentialNode.id === "function" ? potentialNode.id() : void 0 : void 0) != null;
+  isNode = function(node, type) {
+    if ((node != null ? typeof node.id === "function" ? node.id() : void 0 : void 0) != null) {
+      if (type) {
+        return node.type() === type;
+      } else {
+        return true;
+      }
+    }
   };
 
   makeNode = function(type, initialSet) {
@@ -384,16 +407,7 @@
     canvas = document.getElementById("c");
     ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    g.all("point").forEach(function(point) {
-      var x, y;
-      x = point.get("x").get("v");
-      y = point.get("y").get("v");
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = mouseOn === point ? "#f00" : "#000";
-      return ctx.fill();
-    });
-    return g.all("line").forEach(function(line) {
+    g.all("line").forEach(function(line) {
       var x1, x2, y1, y2;
       x1 = line.get("p1").get("x").get("v");
       y1 = line.get("p1").get("y").get("v");
@@ -403,6 +417,15 @@
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
       return ctx.stroke();
+    });
+    return g.all("point").forEach(function(point) {
+      var x, y;
+      x = point.get("x").get("v");
+      y = point.get("y").get("v");
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = mouseOn === point ? "#f00" : "#000";
+      return ctx.fill();
     });
   };
 

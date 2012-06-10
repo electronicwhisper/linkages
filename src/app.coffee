@@ -22,10 +22,7 @@ module.exports = () ->
   
   
   mouseOn = false # keep track of what point or line the mouse is on (or pretty close to at least)
-  mousePos = {
-    x: makeValue(0).set("isConstant", true)
-    y: makeValue(0).set("isConstant", true)
-  }
+  mousePos = g.node("pseudoPoint", {x: makeValue(0).set("isConstant", true), y: makeValue(0).set("isConstant", true)})
   
   
   
@@ -36,29 +33,35 @@ module.exports = () ->
   l1 = makeLine(p1, p2)
   l2 = makeLine(p2, p3)
   
-  c = makeConstraint(((x) ->
-      e = x[0] - x[1]
-      e * e
-    ), [p2.get("x"), p3.get("x")])
   
-  makeConstraint(((x) ->
-    p = x[0]-x[2]
-    q = x[1]-x[3]
-    e = p*p + q*q
-    return e
-  ), [p1.get("x"), p1.get("y"), mousePos.x, mousePos.y]).set("isHard", false)
+  constraints = {}
+  
+  constraints.setDistance = (p1, p2, distance) ->
+    makeConstraint((([p1x, p1y, p2x, p2y]) ->
+      dx = p1x - p2x
+      dy = p1y - p2y
+      e = Math.sqrt(dx * dx + dy * dy) - distance
+      return e * e
+    ), [p1.get("x"), p1.get("y"), p2.get("x"), p2.get("y")])
+  
+  constraints.moveWithMouse = (p) ->
+    constraints.setDistance(p, mousePos, 0).set("isHard", false)
+  
+  
+  constraints.setDistance(p2, p3, 100)
   
   
   
+  
+  
+  dragging = false
   
   render(g, mouseOn)
   window.onmousemove = (e) ->
     x = e.clientX
     y = e.clientY
-    mousePos.x.set("v", x)
-    mousePos.y.set("v", y)
-    
-    
+    mousePos.get("x").set("v", x)
+    mousePos.get("y").set("v", y)
     
     solve(g)
     
@@ -66,39 +69,14 @@ module.exports = () ->
     
     render(g, mouseOn)
   
+  window.onmousedown = (e) ->
+    if !dragging && g.isNode(mouseOn, "point")
+      dragging = {
+        mouseConstraint: constraints.moveWithMouse(mouseOn)
+      }
   
+  window.onmouseup = (e) ->
+    if dragging
+      dragging.mouseConstraint.remove()
+      dragging = false
   
-  # cs = require("./constraintSystem")()
-  # model = require("./model")(cs)
-  # 
-  # p1 = model.makePoint(0, 0)
-  # p2 = model.makePoint(100, 0)
-  # p3 = model.makePoint(300, 0)
-  # p4 = model.makePoint(100, 100)
-  # 
-  # # p1.setFixed(true)
-  # model.makeLine(p1, p2).setFixed(true)
-  # model.makeLine(p2, p3).setFixed(true)
-  # model.makeLine(p2, p4).setFixed(true)
-  # model.makeLine(p3, p4).setFixed(true)
-  # 
-  # p3.setFixed(true)
-  # 
-  # mouse = model.makePoint(0, 0)
-  # mouse.setFixed(true)
-  # 
-  # constraint = cs.minimize(((x1, y1, x2, y2) ->
-  #   return ((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2))
-  # ), mouse.p[0], mouse.p[1], p1.p[0], p1.p[1])
-  # 
-  # document.onmousemove = (e) ->
-  #   mouse.p[0].value = e.clientX-500
-  #   mouse.p[1].value = e.clientY-500
-  #   
-  #   
-  #   
-  #   cs.solve()
-  #   
-  #   # constraint.remove()
-  #   
-  #   require("./render")(model)

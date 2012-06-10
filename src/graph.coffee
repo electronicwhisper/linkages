@@ -10,8 +10,9 @@ nodes = indexedTable("node", "type")
 links = indexedTable("node", "target")
 
 
-isNode = (potentialNode) ->
-  potentialNode?.id?()?
+isNode = (node, type) ->
+  if node?.id?()?
+    if type then node.type() == type else true
 
 
 
