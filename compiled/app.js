@@ -51,11 +51,12 @@
 }).call(this)({"app": function(exports, require, module) {(function() {
 
   module.exports = function() {
-    var constraints, dragging, find, g, l1, l2, makeConstraint, makeLine, makePoint, makeValue, mouseOn, mousePos, p1, p2, p3, render, solve;
+    var constraints, dragging, find, g, l1, l2, makeConstraint, makeLine, makePoint, makeValue, mouseOn, mousePos, p1, p2, p3, render, solve, util;
     g = require("./graph");
     render = require("./render");
     find = require("./find");
     solve = require("./solve");
+    util = require("./util");
     makeValue = function(v) {
       return g.node("value", {
         v: v,
@@ -83,7 +84,8 @@
     makeLine = function(p1, p2) {
       return g.node("line", {
         p1: p1,
-        p2: p2
+        p2: p2,
+        constrained: false
       });
     };
     mouseOn = false;
@@ -99,18 +101,15 @@
     constraints = {};
     constraints.setDistance = function(p1, p2, distance) {
       return makeConstraint((function(_arg) {
-        var dx, dy, e, p1x, p1y, p2x, p2y;
+        var e, p1x, p1y, p2x, p2y;
         p1x = _arg[0], p1y = _arg[1], p2x = _arg[2], p2y = _arg[3];
-        dx = p1x - p2x;
-        dy = p1y - p2y;
-        e = Math.sqrt(dx * dx + dy * dy) - distance;
+        e = util.distance(p1x, p1y, p2x, p2y) - distance;
         return e * e;
       }), [p1.get("x"), p1.get("y"), p2.get("x"), p2.get("y")]);
     };
     constraints.moveWithMouse = function(p) {
       return constraints.setDistance(p, mousePos, 0).set("isHard", false);
     };
-    constraints.setDistance(p2, p3, 100);
     dragging = false;
     render(g, mouseOn);
     window.onmousemove = function(e) {
@@ -130,39 +129,73 @@
         };
       }
     };
-    return window.onmouseup = function(e) {
+    window.onmouseup = function(e) {
       if (dragging) {
         dragging.mouseConstraint.remove();
         return dragging = false;
+      }
+    };
+    return window.onclick = function(e) {
+      var constraint, d, line, p1x, p1y, p2x, p2y;
+      if (g.isNode(mouseOn, "line")) {
+        line = mouseOn;
+        constraint = line.get("constrained");
+        if (constraint) {
+          line.set("constrained", false);
+          constraint.remove();
+        } else {
+          p1 = line.get("p1");
+          p2 = line.get("p2");
+          p1x = p1.get("x").get("v");
+          p1y = p1.get("y").get("v");
+          p2x = p2.get("x").get("v");
+          p2y = p2.get("y").get("v");
+          d = util.distance(p1x, p1y, p2x, p2y);
+          constraint = constraints.setDistance(p1, p2, d);
+          line.set("constrained", constraint);
+        }
+        return render(g, mouseOn);
       }
     };
   };
 
 }).call(this);
 }, "find": function(exports, require, module) {(function() {
-  var threshold;
+  var lineThreshold, pointThreshold, util;
 
-  threshold = 10;
+  util = require("./util");
+
+  pointThreshold = 10;
+
+  lineThreshold = 4;
 
   module.exports = function(g, x, y) {
     var closest, minDistance;
-    minDistance = Infinity;
+    minDistance = 0;
     closest = false;
     g.all("point").forEach(function(point) {
       var d, px, py;
       px = point.get("x").get("v");
       py = point.get("y").get("v");
-      d = Math.sqrt((px - x) * (px - x) + (py - y) * (py - y));
+      d = util.distance(px, py, x, y) - pointThreshold;
       if (d < minDistance) {
         minDistance = d;
         return closest = point;
       }
     });
-    if (minDistance < threshold) {
-      return closest;
-    } else {
-      return false;
-    }
+    g.all("line").forEach(function(line) {
+      var d, l1x, l1y, l2x, l2y;
+      l1x = line.get("p1").get("x").get("v");
+      l1y = line.get("p1").get("y").get("v");
+      l2x = line.get("p2").get("x").get("v");
+      l2y = line.get("p2").get("y").get("v");
+      d = util.distancePointLine(x, y, l1x, l1y, l2x, l2y) - lineThreshold;
+      if (d < minDistance) {
+        minDistance = d;
+        return closest = line;
+      }
+    });
+    return closest;
   };
 
 }).call(this);
@@ -416,6 +449,13 @@
       ctx.beginPath();
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "#999";
+      if (line.get("constrained")) {
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#000";
+      }
+      if (mouseOn === line) ctx.strokeStyle = "#f00";
       return ctx.stroke();
     });
     return g.all("point").forEach(function(point) {
@@ -423,7 +463,7 @@
       x = point.get("x").get("v");
       y = point.get("y").get("v");
       ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.arc(x, y, 4.5, 0, Math.PI * 2);
       ctx.fillStyle = mouseOn === point ? "#f00" : "#000";
       return ctx.fill();
     });
@@ -493,6 +533,29 @@
         return value.set("v", result.solution[i]);
       });
     }
+  };
+
+}).call(this);
+}, "util": function(exports, require, module) {(function() {
+  var distance, distancePointLine;
+
+  distance = function(p1x, p1y, p2x, p2y) {
+    var dx, dy;
+    dx = p1x - p2x;
+    dy = p1y - p2y;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  distancePointLine = function(px, py, l1x, l1y, l2x, l2y) {
+    var dx, dy;
+    dx = l2x - l1x;
+    dy = l2y - l1y;
+    return Math.abs(dx * (l1y - py) - dy * (l1x - px)) / Math.sqrt(dx * dx + dy * dy);
+  };
+
+  module.exports = {
+    distance: distance,
+    distancePointLine: distancePointLine
   };
 
 }).call(this);

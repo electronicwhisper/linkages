@@ -12,12 +12,21 @@ module.exports = (g, mouseOn) ->
     ctx.beginPath()
     ctx.moveTo(x1, y1)
     ctx.lineTo(x2, y2)
+    
+    ctx.lineWidth = 1
+    ctx.strokeStyle = "#999"
+    if line.get("constrained")
+      ctx.lineWidth = 3
+      ctx.strokeStyle = "#000"
+    if mouseOn == line
+      ctx.strokeStyle = "#f00"
+    
     ctx.stroke()
   
   g.all("point").forEach (point) ->
     x = point.get("x").get("v")
     y = point.get("y").get("v")
     ctx.beginPath()
-    ctx.arc(x, y, 4, 0, Math.PI*2)
+    ctx.arc(x, y, 4.5, 0, Math.PI*2)
     ctx.fillStyle = if mouseOn == point then "#f00" else "#000"
     ctx.fill()

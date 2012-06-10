@@ -4,6 +4,7 @@ module.exports = () ->
   render = require("./render")
   find = require("./find")
   solve = require("./solve")
+  util = require("./util")
   
   makeValue = (v) ->
     g.node("value", {v: v, isConstant: false})
@@ -18,7 +19,7 @@ module.exports = () ->
     g.node("point", {x: makeValue(x), y: makeValue(y)})
   
   makeLine = (p1, p2) ->
-    g.node("line", {p1: p1, p2: p2})
+    g.node("line", {p1: p1, p2: p2, constrained: false})
   
   
   mouseOn = false # keep track of what point or line the mouse is on (or pretty close to at least)
@@ -34,13 +35,15 @@ module.exports = () ->
   l2 = makeLine(p2, p3)
   
   
+  
+
+  
+  
   constraints = {}
   
   constraints.setDistance = (p1, p2, distance) ->
     makeConstraint((([p1x, p1y, p2x, p2y]) ->
-      dx = p1x - p2x
-      dy = p1y - p2y
-      e = Math.sqrt(dx * dx + dy * dy) - distance
+      e = util.distance(p1x, p1y, p2x, p2y) - distance
       return e * e
     ), [p1.get("x"), p1.get("y"), p2.get("x"), p2.get("y")])
   
@@ -48,7 +51,6 @@ module.exports = () ->
     constraints.setDistance(p, mousePos, 0).set("isHard", false)
   
   
-  constraints.setDistance(p2, p3, 100)
   
   
   
@@ -80,3 +82,23 @@ module.exports = () ->
       dragging.mouseConstraint.remove()
       dragging = false
   
+  window.onclick = (e) ->
+    if g.isNode(mouseOn, "line")
+      line = mouseOn
+      constraint = line.get("constrained")
+      if constraint
+        line.set("constrained", false)
+        constraint.remove()
+      else
+        p1 = line.get("p1")
+        p2 = line.get("p2")
+        p1x = p1.get("x").get("v")
+        p1y = p1.get("y").get("v")
+        p2x = p2.get("x").get("v")
+        p2y = p2.get("y").get("v")
+        d = util.distance(p1x, p1y, p2x, p2y)
+        
+        constraint = constraints.setDistance(p1, p2, d)
+        line.set("constrained", constraint)
+      
+      render(g, mouseOn)
