@@ -39,8 +39,8 @@ module.exports = (g) ->
         else
           return x[i]
       error = constraint.get("f")(args)
-      if constraint.get("isHard")
-        error *= 100
+      if !constraint.get("isHard")
+        error *= .001
       totalError += error
     return totalError
   

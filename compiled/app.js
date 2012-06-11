@@ -51,7 +51,7 @@
 }).call(this)({"app": function(exports, require, module) {(function() {
 
   module.exports = function() {
-    var constraints, dragging, find, g, makeConstraint, makeLine, makePoint, makeValue, mouseOn, mousePos, render, solve, util;
+    var constraints, dragging, find, g, makeConstraint, makeLine, makePoint, makeValue, mouseOn, mousePos, potentialClick, redraw, render, solve, util;
     g = require("./graph");
     render = require("./render");
     find = require("./find");
@@ -78,7 +78,8 @@
     makePoint = function(x, y) {
       return g.node("point", {
         x: makeValue(x),
-        y: makeValue(y)
+        y: makeValue(y),
+        constrained: false
       });
     };
     makeLine = function(p1, p2) {
@@ -119,59 +120,86 @@
     constraints.moveWithMouse = function(p) {
       return constraints.setDistance(p, mousePos, 0).set("isHard", false);
     };
+    redraw = function() {
+      return render(g, mouseOn);
+    };
     dragging = false;
-    render(g, mouseOn);
+    potentialClick = false;
+    redraw();
     window.onmousemove = function(e) {
       var x, y;
       x = e.clientX;
       y = e.clientY;
+      if (potentialClick && util.distance(x, y, potentialClick.x, potentialClick.y) > 3) {
+        potentialClick = false;
+      }
       mousePos.get("x").set("v", x);
       mousePos.get("y").set("v", y);
       solve(g);
-      mouseOn = find(g, x, y);
-      return render(g, mouseOn);
+      if (!dragging) mouseOn = find(g, x, y);
+      return redraw();
     };
     window.onmousedown = function(e) {
+      var point;
+      potentialClick = {
+        x: e.clientX,
+        y: e.clientY
+      };
       if (!dragging && g.isNode(mouseOn, "point")) {
-        return dragging = {
-          mouseConstraint: constraints.moveWithMouse(mouseOn)
+        point = mouseOn;
+        point.get("x").set("isConstant", false);
+        point.get("y").set("isConstant", false);
+        dragging = {
+          mouseConstraint: constraints.moveWithMouse(point)
         };
       }
+      return redraw();
     };
     window.onmouseup = function(e) {
+      var constrained, constraint, d, line, p1, p1x, p1y, p2, p2x, p2y, point, toggle;
       if (dragging) {
         dragging.mouseConstraint.remove();
-        return dragging = false;
+        point = mouseOn;
+        constrained = point.get("constrained");
+        point.get("x").set("isConstant", constrained);
+        point.get("y").set("isConstant", constrained);
       }
-    };
-    window.onclick = function(e) {
-      var constraint, d, line, p1, p1x, p1y, p2, p2x, p2y;
-      if (g.isNode(mouseOn, "line")) {
-        line = mouseOn;
-        constraint = line.get("constrained");
-        if (constraint) {
-          line.set("constrained", false);
-          constraint.remove();
-        } else {
-          p1 = line.get("p1");
-          p2 = line.get("p2");
-          p1x = p1.get("x").get("v");
-          p1y = p1.get("y").get("v");
-          p2x = p2.get("x").get("v");
-          p2y = p2.get("y").get("v");
-          d = util.distance(p1x, p1y, p2x, p2y);
-          constraint = constraints.setDistance(p1, p2, d);
-          line.set("constrained", constraint);
+      dragging = false;
+      if (potentialClick) {
+        if (g.isNode(mouseOn, "line")) {
+          line = mouseOn;
+          constraint = line.get("constrained");
+          if (constraint) {
+            line.set("constrained", false);
+            constraint.remove();
+          } else {
+            p1 = line.get("p1");
+            p2 = line.get("p2");
+            p1x = p1.get("x").get("v");
+            p1y = p1.get("y").get("v");
+            p2x = p2.get("x").get("v");
+            p2y = p2.get("y").get("v");
+            d = util.distance(p1x, p1y, p2x, p2y);
+            constraint = constraints.setDistance(p1, p2, d);
+            line.set("constrained", constraint);
+          }
+        } else if (g.isNode(mouseOn, "point")) {
+          point = mouseOn;
+          toggle = !point.get("constrained");
+          point.get("x").set("isConstant", toggle);
+          point.get("y").set("isConstant", toggle);
+          point.set("constrained", toggle);
         }
-        return render(g, mouseOn);
       }
+      potentialClick = false;
+      return redraw();
     };
     return window.onresize = function(e) {
       var canvas, height, width;
       canvas = document.getElementById("c");
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
-      return render(g, mouseOn);
+      return redraw();
     };
   };
 
@@ -458,13 +486,6 @@
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     g.all("line").forEach(function(line) {
       var x1, x2, y1, y2;
-      x1 = line.get("p1").get("x").get("v");
-      y1 = line.get("p1").get("y").get("v");
-      x2 = line.get("p2").get("x").get("v");
-      y2 = line.get("p2").get("y").get("v");
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
       ctx.lineWidth = 1;
       ctx.strokeStyle = "#999";
       if (line.get("constrained")) {
@@ -472,16 +493,29 @@
         ctx.strokeStyle = "#000";
       }
       if (mouseOn === line) ctx.strokeStyle = "#f00";
+      x1 = line.get("p1").get("x").get("v");
+      y1 = line.get("p1").get("y").get("v");
+      x2 = line.get("p2").get("x").get("v");
+      y2 = line.get("p2").get("y").get("v");
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
       return ctx.stroke();
     });
     return g.all("point").forEach(function(point) {
       var x, y;
+      ctx.lineWidth = 1;
+      ctx.fillStyle = ctx.strokeStyle = mouseOn === point ? "#f00" : "#000";
       x = point.get("x").get("v");
       y = point.get("y").get("v");
       ctx.beginPath();
       ctx.arc(x, y, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = mouseOn === point ? "#f00" : "#000";
-      return ctx.fill();
+      ctx.fill();
+      if (point.get("constrained")) {
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, Math.PI * 2);
+        return ctx.stroke();
+      }
     });
   };
 
@@ -538,7 +572,7 @@
           }
         });
         error = constraint.get("f")(args);
-        if (constraint.get("isHard")) error *= 100;
+        if (!constraint.get("isHard")) error *= .001;
         return totalError += error;
       });
       return totalError;

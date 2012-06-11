@@ -16,7 +16,7 @@ module.exports = () ->
     return constraint
   
   makePoint = (x, y) ->
-    g.node("point", {x: makeValue(x), y: makeValue(y)})
+    g.node("point", {x: makeValue(x), y: makeValue(y), constrained: false})
   
   makeLine = (p1, p2) ->
     g.node("line", {p1: p1, p2: p2, constrained: false})
@@ -55,58 +55,89 @@ module.exports = () ->
   
   
   
-  
+  redraw = () ->
+    render(g, mouseOn)
   
   
   dragging = false
   
-  render(g, mouseOn)
+  potentialClick = false
+  
+  redraw()
+  
   window.onmousemove = (e) ->
     x = e.clientX
     y = e.clientY
+    
+    if potentialClick && util.distance(x, y, potentialClick.x, potentialClick.y) > 3
+      potentialClick = false
+    
     mousePos.get("x").set("v", x)
     mousePos.get("y").set("v", y)
     
     solve(g)
     
-    mouseOn = find(g, x, y)
+    if !dragging
+      mouseOn = find(g, x, y)
     
-    render(g, mouseOn)
+    redraw()
   
   window.onmousedown = (e) ->
+    potentialClick = {x: e.clientX, y: e.clientY}
     if !dragging && g.isNode(mouseOn, "point")
+      point = mouseOn
+      
+      #hack
+      point.get("x").set("isConstant", false)
+      point.get("y").set("isConstant", false)
+      
       dragging = {
-        mouseConstraint: constraints.moveWithMouse(mouseOn)
+        mouseConstraint: constraints.moveWithMouse(point)
       }
+    redraw()
   
   window.onmouseup = (e) ->
     if dragging
       dragging.mouseConstraint.remove()
-      dragging = false
+      # hack
+      point = mouseOn
+      constrained = point.get("constrained")
+      point.get("x").set("isConstant", constrained)
+      point.get("y").set("isConstant", constrained)
+    dragging = false
+    
+    if potentialClick
+      if g.isNode(mouseOn, "line")
+        line = mouseOn
+        constraint = line.get("constrained")
+        if constraint
+          line.set("constrained", false)
+          constraint.remove()
+        else
+          p1 = line.get("p1")
+          p2 = line.get("p2")
+          p1x = p1.get("x").get("v")
+          p1y = p1.get("y").get("v")
+          p2x = p2.get("x").get("v")
+          p2y = p2.get("y").get("v")
+          d = util.distance(p1x, p1y, p2x, p2y)
+          
+          constraint = constraints.setDistance(p1, p2, d)
+          line.set("constrained", constraint)
+          
+      else if g.isNode(mouseOn, "point")
+        point = mouseOn
+        toggle = !point.get("constrained")
+        point.get("x").set("isConstant", toggle)
+        point.get("y").set("isConstant", toggle)
+        point.set("constrained", toggle)
+    potentialClick = false
+    
+    redraw()
   
-  window.onclick = (e) ->
-    if g.isNode(mouseOn, "line")
-      line = mouseOn
-      constraint = line.get("constrained")
-      if constraint
-        line.set("constrained", false)
-        constraint.remove()
-      else
-        p1 = line.get("p1")
-        p2 = line.get("p2")
-        p1x = p1.get("x").get("v")
-        p1y = p1.get("y").get("v")
-        p2x = p2.get("x").get("v")
-        p2y = p2.get("y").get("v")
-        d = util.distance(p1x, p1y, p2x, p2y)
-        
-        constraint = constraints.setDistance(p1, p2, d)
-        line.set("constrained", constraint)
-      
-      render(g, mouseOn)
   
   window.onresize = (e) ->
     canvas = document.getElementById("c")
     width = canvas.width = window.innerWidth
     height = canvas.height = window.innerHeight
-    render(g, mouseOn)
+    redraw()
