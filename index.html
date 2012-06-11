@@ -2,10 +2,25 @@
 <html>
 <head>
 <style type="text/css">
-body {margin: 0; overflow: hidden}
+body {
+  overflow: hidden;
+  font-family: optima;
+  font-size: 13px;
+}
+#c {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
 </style>
 </head>
 <body>
+
+<div id="instructions">
+  Drag points around.<br />
+  Click a line to fix its length.<br />
+  Click a point to fix its location.
+</div>
 
 <canvas id="c" width="1000" height="1000"></canvas>
 

@@ -31,9 +31,10 @@ module.exports = () ->
     width = canvas.width = window.innerWidth
     height = canvas.height = window.innerHeight
     
-    ps = [0...5].map () -> makePoint(Math.random() * width, Math.random() * height)
+    n = 5
+    ps = [0...n].map () -> makePoint(Math.random() * width, Math.random() * height)
     ps.forEach (p1, i) ->
-      ps[i+1...5].forEach (p2) ->
+      ps[i+1...n].forEach (p2) ->
         makeLine(p1, p2)
   
   
@@ -83,6 +84,7 @@ module.exports = () ->
     redraw()
   
   window.onmousedown = (e) ->
+    e.preventDefault()
     potentialClick = {x: e.clientX, y: e.clientY}
     if !dragging && g.isNode(mouseOn, "point")
       point = mouseOn

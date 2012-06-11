@@ -95,15 +95,20 @@
       y: makeValue(0).set("isConstant", true)
     });
     (function() {
-      var canvas, height, ps, width;
+      var canvas, height, n, ps, width, _i, _results;
       canvas = document.getElementById("c");
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
-      ps = [0, 1, 2, 3, 4].map(function() {
+      n = 5;
+      ps = (function() {
+        _results = [];
+        for (var _i = 0; 0 <= n ? _i < n : _i > n; 0 <= n ? _i++ : _i--){ _results.push(_i); }
+        return _results;
+      }).apply(this).map(function() {
         return makePoint(Math.random() * width, Math.random() * height);
       });
       return ps.forEach(function(p1, i) {
-        return ps.slice(i + 1, 5).forEach(function(p2) {
+        return ps.slice(i + 1, n).forEach(function(p2) {
           return makeLine(p1, p2);
         });
       });
@@ -141,6 +146,7 @@
     };
     window.onmousedown = function(e) {
       var point;
+      e.preventDefault();
       potentialClick = {
         x: e.clientX,
         y: e.clientY
