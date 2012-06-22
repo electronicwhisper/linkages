@@ -51,7 +51,7 @@
 }).call(this)({"app": function(exports, require, module) {(function() {
 
   module.exports = function() {
-    var constraints, dragging, find, g, makeConstraint, makeLine, makePoint, makeValue, mouseOn, mousePos, potentialClick, redraw, render, solve, util;
+    var click, constraints, dragMove, dragging, find, g, makeConstraint, makeLine, makePoint, makeValue, mouseDown, mouseMove, mouseOn, mousePos, mouseUp, potentialClick, redraw, render, solve, util;
     g = require("./graph");
     render = require("./render");
     find = require("./find");
@@ -89,11 +89,6 @@
         constrained: false
       });
     };
-    mouseOn = false;
-    mousePos = g.node("pseudoPoint", {
-      x: makeValue(0).set("isConstant", true),
-      y: makeValue(0).set("isConstant", true)
-    });
     (function() {
       var canvas, height, n, ps, width, _i, _results;
       canvas = document.getElementById("c");
@@ -128,30 +123,25 @@
     redraw = function() {
       return render(g, mouseOn);
     };
+    redraw();
+    mouseOn = false;
+    mousePos = g.node("pseudoPoint", {
+      x: makeValue(0).set("isConstant", true),
+      y: makeValue(0).set("isConstant", true)
+    });
     dragging = false;
     potentialClick = false;
-    redraw();
-    window.onmousemove = function(e) {
-      var x, y;
-      x = e.clientX;
-      y = e.clientY;
-      if (potentialClick && numeric.distance([x, y], [potentialClick.x, potentialClick.y]) > 3) {
-        potentialClick = false;
-      }
-      mousePos.get("x").set("v", x);
-      mousePos.get("y").set("v", y);
-      solve(g);
-      if (!dragging) mouseOn = find(g, x, y);
+    mouseMove = function(x, y) {
+      mouseOn = find(g, x, y);
       return redraw();
     };
-    window.onmousedown = function(e) {
+    dragMove = function(x, y) {
+      solve(g);
+      return redraw();
+    };
+    mouseDown = function(x, y) {
       var point;
-      e.preventDefault();
-      potentialClick = {
-        x: e.clientX,
-        y: e.clientY
-      };
-      if (!dragging && g.isNode(mouseOn, "point")) {
+      if (g.isNode(mouseOn, "point")) {
         point = mouseOn;
         point.get("x").set("isConstant", false);
         point.get("y").set("isConstant", false);
@@ -161,50 +151,84 @@
       }
       return redraw();
     };
-    window.onmouseup = function(e) {
-      var constrained, constraint, d, line, p1, p1x, p1y, p2, p2x, p2y, point, toggle;
+    mouseUp = function(x, y) {
+      var constrained, point;
       if (dragging) {
         dragging.mouseConstraint.remove();
         point = mouseOn;
         constrained = point.get("constrained");
         point.get("x").set("isConstant", constrained);
-        point.get("y").set("isConstant", constrained);
+        return point.get("y").set("isConstant", constrained);
       }
-      dragging = false;
-      if (potentialClick) {
-        if (g.isNode(mouseOn, "line")) {
-          line = mouseOn;
-          constraint = line.get("constrained");
-          if (constraint) {
-            line.set("constrained", false);
-            constraint.remove();
-          } else {
-            p1 = line.get("p1");
-            p2 = line.get("p2");
-            p1x = p1.get("x").get("v");
-            p1y = p1.get("y").get("v");
-            p2x = p2.get("x").get("v");
-            p2y = p2.get("y").get("v");
-            d = numeric.distance([p1x, p1y], [p2x, p2y]);
-            constraint = constraints.setDistance(p1, p2, d);
-            line.set("constrained", constraint);
-          }
-        } else if (g.isNode(mouseOn, "point")) {
-          point = mouseOn;
-          toggle = !point.get("constrained");
-          point.get("x").set("isConstant", toggle);
-          point.get("y").set("isConstant", toggle);
-          point.set("constrained", toggle);
+    };
+    click = function(x, y) {
+      var constraint, d, line, p1, p1x, p1y, p2, p2x, p2y, point, toggle;
+      if (g.isNode(mouseOn, "line")) {
+        line = mouseOn;
+        constraint = line.get("constrained");
+        if (constraint) {
+          line.set("constrained", false);
+          constraint.remove();
+        } else {
+          p1 = line.get("p1");
+          p2 = line.get("p2");
+          p1x = p1.get("x").get("v");
+          p1y = p1.get("y").get("v");
+          p2x = p2.get("x").get("v");
+          p2y = p2.get("y").get("v");
+          d = numeric.distance([p1x, p1y], [p2x, p2y]);
+          constraint = constraints.setDistance(p1, p2, d);
+          line.set("constrained", constraint);
         }
+      } else if (g.isNode(mouseOn, "point")) {
+        point = mouseOn;
+        toggle = !point.get("constrained");
+        point.get("x").set("isConstant", toggle);
+        point.get("y").set("isConstant", toggle);
+        point.set("constrained", toggle);
       }
-      potentialClick = false;
       return redraw();
     };
+    window.onmousemove = function(e) {
+      var x, y;
+      x = e.clientX;
+      y = e.clientY;
+      if (potentialClick && numeric.distance([x, y], [potentialClick.x, potentialClick.y]) > 3) {
+        potentialClick = false;
+      }
+      mousePos.get("x").set("v", x);
+      mousePos.get("y").set("v", y);
+      if (dragging) {
+        return dragMove(x, y);
+      } else {
+        return mouseMove(x, y);
+      }
+    };
+    window.onmousedown = function(e) {
+      var x, y;
+      x = e.clientX;
+      y = e.clientY;
+      e.preventDefault();
+      potentialClick = {
+        x: e.clientX,
+        y: e.clientY
+      };
+      return mouseDown(x, y);
+    };
+    window.onmouseup = function(e) {
+      var x, y;
+      x = e.clientX;
+      y = e.clientY;
+      mouseUp(x, y);
+      dragging = false;
+      if (potentialClick) click(x, y);
+      return potentialClick = false;
+    };
     return window.onresize = function(e) {
-      var canvas, height, width;
+      var canvas;
       canvas = document.getElementById("c");
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
       return redraw();
     };
   };
