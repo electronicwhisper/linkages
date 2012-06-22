@@ -31,7 +31,7 @@ module.exports = () ->
     width = canvas.width = window.innerWidth
     height = canvas.height = window.innerHeight
     
-    n = 5
+    n = 6
     ps = [0...n].map () -> makePoint(Math.random() * width, Math.random() * height)
     ps.forEach (p1, i) ->
       ps[i+1...n].forEach (p2) ->
@@ -46,7 +46,7 @@ module.exports = () ->
   
   constraints.setDistance = (p1, p2, distance) ->
     makeConstraint((([p1x, p1y, p2x, p2y]) ->
-      e = util.distance(p1x, p1y, p2x, p2y) - distance
+      e = numeric.distance([p1x, p1y], [p2x, p2y]) - distance
       return e * e
     ), [p1.get("x"), p1.get("y"), p2.get("x"), p2.get("y")])
   
@@ -70,7 +70,7 @@ module.exports = () ->
     x = e.clientX
     y = e.clientY
     
-    if potentialClick && util.distance(x, y, potentialClick.x, potentialClick.y) > 3
+    if potentialClick && numeric.distance([x, y], [potentialClick.x, potentialClick.y]) > 3
       potentialClick = false
     
     mousePos.get("x").set("v", x)
@@ -122,7 +122,7 @@ module.exports = () ->
           p1y = p1.get("y").get("v")
           p2x = p2.get("x").get("v")
           p2y = p2.get("y").get("v")
-          d = util.distance(p1x, p1y, p2x, p2y)
+          d = numeric.distance([p1x, p1y], [p2x, p2y])
           
           constraint = constraints.setDistance(p1, p2, d)
           line.set("constrained", constraint)

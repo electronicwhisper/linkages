@@ -1,2 +1,13 @@
 Render fixed/unfixed points and lines appropriately
 Make a point merge function
+
+
+
+
+
+
+Add keymaster
+Select line(s) - hold cmd
+Make equal length
+Make parallel
+Make horizontal/vertical

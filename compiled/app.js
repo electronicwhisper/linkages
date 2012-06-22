@@ -99,7 +99,7 @@
       canvas = document.getElementById("c");
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
-      n = 5;
+      n = 6;
       ps = (function() {
         _results = [];
         for (var _i = 0; 0 <= n ? _i < n : _i > n; 0 <= n ? _i++ : _i--){ _results.push(_i); }
@@ -118,7 +118,7 @@
       return makeConstraint((function(_arg) {
         var e, p1x, p1y, p2x, p2y;
         p1x = _arg[0], p1y = _arg[1], p2x = _arg[2], p2y = _arg[3];
-        e = util.distance(p1x, p1y, p2x, p2y) - distance;
+        e = numeric.distance([p1x, p1y], [p2x, p2y]) - distance;
         return e * e;
       }), [p1.get("x"), p1.get("y"), p2.get("x"), p2.get("y")]);
     };
@@ -135,7 +135,7 @@
       var x, y;
       x = e.clientX;
       y = e.clientY;
-      if (potentialClick && util.distance(x, y, potentialClick.x, potentialClick.y) > 3) {
+      if (potentialClick && numeric.distance([x, y], [potentialClick.x, potentialClick.y]) > 3) {
         potentialClick = false;
       }
       mousePos.get("x").set("v", x);
@@ -185,7 +185,7 @@
             p1y = p1.get("y").get("v");
             p2x = p2.get("x").get("v");
             p2y = p2.get("y").get("v");
-            d = util.distance(p1x, p1y, p2x, p2y);
+            d = numeric.distance([p1x, p1y], [p2x, p2y]);
             constraint = constraints.setDistance(p1, p2, d);
             line.set("constrained", constraint);
           }
@@ -210,6 +210,110 @@
   };
 
 }).call(this);
+}, "constraintSolver": function(exports, require, module) {(function() {
+  var accessed, collect, idCount, makeCell, makeId, mergeInto, objValues, solve,
+    __hasProp = Object.prototype.hasOwnProperty;
+
+  idCount = 0;
+
+  makeId = function() {
+    return "" + idCount++;
+  };
+
+  mergeInto = function(o, o2) {
+    var k, v, _results;
+    _results = [];
+    for (k in o2) {
+      if (!__hasProp.call(o2, k)) continue;
+      v = o2[k];
+      _results.push(o[k] = v);
+    }
+    return _results;
+  };
+
+  objValues = function(o) {
+    var k, ret, v;
+    ret = [];
+    for (k in o) {
+      if (!__hasProp.call(o, k)) continue;
+      v = o[k];
+      ret.push(v);
+    }
+    return ret;
+  };
+
+  accessed = false;
+
+  makeCell = function(value) {
+    var cell, id;
+    if (value == null) value = 0;
+    id = makeId();
+    return cell = function(newValue) {
+      if (newValue != null) {
+        return value = newValue;
+      } else {
+        if (accessed) accessed[id] = cell;
+        return value;
+      }
+    };
+  };
+
+  collect = function(f) {
+    var cells;
+    accessed = {};
+    f();
+    cells = accessed;
+    accessed = false;
+    return cells;
+  };
+
+  solve = function(constraints) {
+    var cell, id, initial, objective, result, solveFor;
+    solveFor = {};
+    constraints.forEach(function(constraint) {
+      return mergeInto(solveFor, collect(constraint));
+    });
+    for (id in solveFor) {
+      if (!__hasProp.call(solveFor, id)) continue;
+      cell = solveFor[id];
+      if (cell.constant) delete solveFor[id];
+    }
+    solveFor = objValues(solveFor);
+    if (solveFor.length === 0) return;
+    initial = solveFor.map(function(cell) {
+      return cell();
+    });
+    objective = function(x) {
+      var totalError;
+      solveFor.forEach(function(cell, i) {
+        return cell(x[i]);
+      });
+      totalError = 0;
+      constraints.forEach(function(constraint) {
+        var error;
+        error = constraint();
+        if (constraint.soft) error *= .001;
+        return totalError += error;
+      });
+      return totalError;
+    };
+    result = numeric.uncmin(objective, initial);
+    if (result.solution) {
+      return true;
+    } else {
+      initial.forEach(function(originalValue, i) {
+        return solveFor[i](originalValue);
+      });
+      return false;
+    }
+  };
+
+  return {
+    cell: makeCell,
+    solve: solve
+  };
+
+}).call(this);
 }, "find": function(exports, require, module) {(function() {
   var lineThreshold, pointThreshold, util;
 
@@ -227,7 +331,7 @@
       var d, px, py;
       px = point.get("x").get("v");
       py = point.get("y").get("v");
-      d = util.distance(px, py, x, y) - pointThreshold;
+      d = numeric.distance([px, py], [x, y]) - pointThreshold;
       if (d < minDistance) {
         minDistance = d;
         return closest = point;
@@ -239,7 +343,7 @@
       l1y = line.get("p1").get("y").get("v");
       l2x = line.get("p2").get("x").get("v");
       l2y = line.get("p2").get("y").get("v");
-      d = util.distancePointLine(x, y, l1x, l1y, l2x, l2y) - lineThreshold;
+      d = numeric.distancePointToLineSegment([x, y], [l1x, l1y], [l2x, l2y]) - lineThreshold;
       if (d < minDistance) {
         minDistance = d;
         return closest = line;
@@ -593,26 +697,39 @@
 
 }).call(this);
 }, "util": function(exports, require, module) {(function() {
-  var distance, distancePointLine;
 
-  distance = function(p1x, p1y, p2x, p2y) {
-    var dx, dy;
-    dx = p1x - p2x;
-    dy = p1y - p2y;
-    return Math.sqrt(dx * dx + dy * dy);
+  numeric.distance = function(p1, p2) {
+    var normalized;
+    normalized = numeric.sub(p1, p2);
+    return Math.sqrt(numeric.dot(normalized, normalized));
   };
 
-  distancePointLine = function(px, py, l1x, l1y, l2x, l2y) {
-    var dx, dy;
-    dx = l2x - l1x;
-    dy = l2y - l1y;
-    return Math.abs(dx * (l1y - py) - dy * (l1x - px)) / Math.sqrt(dx * dx + dy * dy);
+  numeric.projectPointToLineSegment = function(p, a, b) {
+    var ab, abSquared, ap, t;
+    ab = numeric.sub(b, a);
+    abSquared = numeric.dot(ab, ab);
+    if (abSquared === 0) {
+      return a;
+    } else {
+      ap = numeric.sub(p, a);
+      t = numeric.dot(ap, ab) / abSquared;
+      if (t < 0) {
+        return a;
+      } else if (t > 1) {
+        return b;
+      } else {
+        return numeric.add(a, numeric.mul(t, ab));
+      }
+    }
   };
 
-  module.exports = {
-    distance: distance,
-    distancePointLine: distancePointLine
+  numeric.distancePointToLineSegment = function(p, a, b) {
+    var p2;
+    p2 = numeric.projectPointToLineSegment(p, a, b);
+    return numeric.distance(p, p2);
   };
+
+  module.exports = {};
 
 }).call(this);
 }});

@@ -1,16 +1,27 @@
-distance = (p1x, p1y, p2x, p2y) ->
-  dx = p1x - p2x
-  dy = p1y - p2y
-  return Math.sqrt(dx *dx + dy * dy)
+numeric.distance = (p1, p2) ->
+  normalized = numeric.sub(p1, p2)
+  return Math.sqrt(numeric.dot(normalized, normalized))
 
-distancePointLine = (px, py, l1x, l1y, l2x, l2y) ->
-  # http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html (14)
-  dx = l2x - l1x
-  dy = l2y - l1y
-  return Math.abs(dx*(l1y-py) - dy*(l1x-px))/Math.sqrt(dx*dx + dy*dy)
+numeric.projectPointToLineSegment = (p, a, b) ->
+  # http://www.alecjacobson.com/weblog/?p=1486
+  ab = numeric.sub(b, a)
+  abSquared = numeric.dot(ab, ab)
+  if abSquared == 0
+    return a
+  else
+    ap = numeric.sub(p, a)
+    t = numeric.dot(ap, ab) / abSquared
+    if t < 0
+      return a
+    else if t > 1
+      return b
+    else
+      return numeric.add(a, numeric.mul(t, ab))
+
+numeric.distancePointToLineSegment = (p, a, b) ->
+  p2 = numeric.projectPointToLineSegment(p, a, b)
+  return numeric.distance(p, p2)
 
 
-module.exports = {
-  distance: distance
-  distancePointLine: distancePointLine
-}
+
+module.exports = {}
