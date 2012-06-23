@@ -10,3 +10,22 @@ Select line(s) - hold cmd
 Make equal length
 Make parallel
 Make horizontal/vertical
+
+
+
+
+
+Fix line distance
+Make equal line length
+
+Fix line slope
+  make horizontal
+  make vertical
+Make parallel lines
+Make perpendicular lines
+
+Fix point location
+Fix points on top of each other
+
+Constrain point on line
+  intersection (point on 2 lines)

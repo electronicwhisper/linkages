@@ -52,19 +52,41 @@ module.exports = () ->
   constraints.moveWithMouse = (p) ->
     constraints.setDistance(p, mousePos, 0).set("isHard", false)
   
+  constraints.equalLength = (l1, l2) ->
+    # initialLength = numeric.distance([l1.get("p1").get("x"), l1.get("p1").get("y")], [l1.get("p2").get("x"), l1.get("p2").get("y")])
+    # length = makeValue(initialLength)
+    makeConstraint((([p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y]) ->
+      d1 = numeric.distance([p1x, p1y], [p2x, p2y])
+      d2 = numeric.distance([p3x, p3y], [p4x, p4y])
+      e = d1 - d2
+      return e * e
+    ), [l1.get("p1").get("x"), l1.get("p1").get("y"), l1.get("p2").get("x"), l1.get("p2").get("y"), l2.get("p1").get("x"), l2.get("p1").get("y"), l2.get("p2").get("x"), l2.get("p2").get("y")])
+  
+  
+  # constraints.equalLength(lines) ->
+  #   initialLength = numeric.distance([lines[0].get("p1").get("x"), lines[0].get("p1").get("y")], [lines[0].get("p2").get("x"), lines[0].get("p2").get("y")])
+  #   makeValue(initialLength)
+  #   makeConstraint(((l, ps...) ->
+  #     
+  #   ), )
   
   
   
-  redraw = () ->
-    render(g, mouseOn)
-  
-  redraw()
   
   
   
   
   mouseOn = false # keep track of what point or line the mouse is on
   mousePos = g.node("pseudoPoint", {x: makeValue(0).set("isConstant", true), y: makeValue(0).set("isConstant", true)})
+  
+  selected = []
+  
+  
+  redraw = () ->
+    render(g, mouseOn, selected)
+  
+  redraw()
+  
   
   dragging = false
   potentialClick = false
@@ -101,30 +123,42 @@ module.exports = () ->
   
   click = (x, y) ->
     if g.isNode(mouseOn, "line")
-      line = mouseOn
-      constraint = line.get("constrained")
-      if constraint
-        line.set("constrained", false)
-        constraint.remove()
+      if key.command
+        if selected.indexOf(mouseOn) == -1
+          selected.push(mouseOn)
+        else
+          selected.splice(selected.indexOf(mouseOn), 1)
       else
-        p1 = line.get("p1")
-        p2 = line.get("p2")
-        p1x = p1.get("x").get("v")
-        p1y = p1.get("y").get("v")
-        p2x = p2.get("x").get("v")
-        p2y = p2.get("y").get("v")
-        d = numeric.distance([p1x, p1y], [p2x, p2y])
-        
-        constraint = constraints.setDistance(p1, p2, d)
-        line.set("constrained", constraint)
-        
-    else if g.isNode(mouseOn, "point")
-      point = mouseOn
-      toggle = !point.get("constrained")
-      point.get("x").set("isConstant", toggle)
-      point.get("y").set("isConstant", toggle)
-      point.set("constrained", toggle)
+        selected = [mouseOn]
+    # if g.isNode(mouseOn, "line")
+    #   line = mouseOn
+    #   constraint = line.get("constrained")
+    #   if constraint
+    #     line.set("constrained", false)
+    #     constraint.remove()
+    #   else
+    #     p1 = line.get("p1")
+    #     p2 = line.get("p2")
+    #     p1x = p1.get("x").get("v")
+    #     p1y = p1.get("y").get("v")
+    #     p2x = p2.get("x").get("v")
+    #     p2y = p2.get("y").get("v")
+    #     d = numeric.distance([p1x, p1y], [p2x, p2y])
+    #     
+    #     constraint = constraints.setDistance(p1, p2, d)
+    #     line.set("constrained", constraint)
+    #     
+    # else if g.isNode(mouseOn, "point")
+    #   point = mouseOn
+    #   toggle = !point.get("constrained")
+    #   point.get("x").set("isConstant", toggle)
+    #   point.get("y").set("isConstant", toggle)
+    #   point.set("constrained", toggle)
     redraw()
+  
+  
+  key "e", () ->
+    constraints.equalLength(selected[0], selected[1])
   
   
   

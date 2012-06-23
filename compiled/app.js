@@ -51,7 +51,7 @@
 }).call(this)({"app": function(exports, require, module) {(function() {
 
   module.exports = function() {
-    var click, constraints, dragMove, dragging, find, g, makeConstraint, makeLine, makePoint, makeValue, mouseDown, mouseMove, mouseOn, mousePos, mouseUp, potentialClick, redraw, render, solve, util;
+    var click, constraints, dragMove, dragging, find, g, makeConstraint, makeLine, makePoint, makeValue, mouseDown, mouseMove, mouseOn, mousePos, mouseUp, potentialClick, redraw, render, selected, solve, util;
     g = require("./graph");
     render = require("./render");
     find = require("./find");
@@ -120,15 +120,26 @@
     constraints.moveWithMouse = function(p) {
       return constraints.setDistance(p, mousePos, 0).set("isHard", false);
     };
-    redraw = function() {
-      return render(g, mouseOn);
+    constraints.equalLength = function(l1, l2) {
+      return makeConstraint((function(_arg) {
+        var d1, d2, e, p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y;
+        p1x = _arg[0], p1y = _arg[1], p2x = _arg[2], p2y = _arg[3], p3x = _arg[4], p3y = _arg[5], p4x = _arg[6], p4y = _arg[7];
+        d1 = numeric.distance([p1x, p1y], [p2x, p2y]);
+        d2 = numeric.distance([p3x, p3y], [p4x, p4y]);
+        e = d1 - d2;
+        return e * e;
+      }), [l1.get("p1").get("x"), l1.get("p1").get("y"), l1.get("p2").get("x"), l1.get("p2").get("y"), l2.get("p1").get("x"), l2.get("p1").get("y"), l2.get("p2").get("x"), l2.get("p2").get("y")]);
     };
-    redraw();
     mouseOn = false;
     mousePos = g.node("pseudoPoint", {
       x: makeValue(0).set("isConstant", true),
       y: makeValue(0).set("isConstant", true)
     });
+    selected = [];
+    redraw = function() {
+      return render(g, mouseOn, selected);
+    };
+    redraw();
     dragging = false;
     potentialClick = false;
     mouseMove = function(x, y) {
@@ -162,33 +173,22 @@
       }
     };
     click = function(x, y) {
-      var constraint, d, line, p1, p1x, p1y, p2, p2x, p2y, point, toggle;
       if (g.isNode(mouseOn, "line")) {
-        line = mouseOn;
-        constraint = line.get("constrained");
-        if (constraint) {
-          line.set("constrained", false);
-          constraint.remove();
+        if (key.command) {
+          if (selected.indexOf(mouseOn) === -1) {
+            selected.push(mouseOn);
+          } else {
+            selected.splice(selected.indexOf(mouseOn), 1);
+          }
         } else {
-          p1 = line.get("p1");
-          p2 = line.get("p2");
-          p1x = p1.get("x").get("v");
-          p1y = p1.get("y").get("v");
-          p2x = p2.get("x").get("v");
-          p2y = p2.get("y").get("v");
-          d = numeric.distance([p1x, p1y], [p2x, p2y]);
-          constraint = constraints.setDistance(p1, p2, d);
-          line.set("constrained", constraint);
+          selected = [mouseOn];
         }
-      } else if (g.isNode(mouseOn, "point")) {
-        point = mouseOn;
-        toggle = !point.get("constrained");
-        point.get("x").set("isConstant", toggle);
-        point.get("y").set("isConstant", toggle);
-        point.set("constrained", toggle);
       }
       return redraw();
     };
+    key("e", function() {
+      return constraints.equalLength(selected[0], selected[1]);
+    });
     window.onmousemove = function(e) {
       var x, y;
       x = e.clientX;
@@ -613,7 +613,7 @@
 }).call(this);
 }, "render": function(exports, require, module) {(function() {
 
-  module.exports = function(g, mouseOn) {
+  module.exports = function(g, mouseOn, selected) {
     var canvas, ctx;
     canvas = document.getElementById("c");
     ctx = canvas.getContext("2d");
@@ -627,6 +627,7 @@
         ctx.strokeStyle = "#000";
       }
       if (mouseOn === line) ctx.strokeStyle = "#f00";
+      if (selected.indexOf(line) !== -1) ctx.strokeStyle = "#00f";
       x1 = line.get("p1").get("x").get("v");
       y1 = line.get("p1").get("y").get("v");
       x2 = line.get("p2").get("x").get("v");

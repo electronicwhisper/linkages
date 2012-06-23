@@ -1,4 +1,4 @@
-module.exports = (g, mouseOn) ->
+module.exports = (g, mouseOn, selected) ->
   canvas = document.getElementById("c")
   ctx = canvas.getContext("2d")
   
@@ -12,6 +12,8 @@ module.exports = (g, mouseOn) ->
       ctx.strokeStyle = "#000"
     if mouseOn == line
       ctx.strokeStyle = "#f00"
+    if selected.indexOf(line) != -1
+      ctx.strokeStyle = "#00f"
     
     x1 = line.get("p1").get("x").get("v")
     y1 = line.get("p1").get("y").get("v")
