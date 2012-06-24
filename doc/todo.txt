@@ -5,8 +5,12 @@ Make a point merge function
 
 
 
+Make constraintSolver use arrays as well (to do vector math)
+Make lines point to distance/slope constraints (as opposed to the other way around)
 
-Select line(s) - hold cmd
+
+
+
 Make equal length
 Make parallel
 Make horizontal/vertical

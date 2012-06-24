@@ -49,20 +49,35 @@ solve = (constraints) ->
     if cell.constant
       delete solveFor[id]
   
-  solveFor = objValues(solveFor)
+  cellArray = objValues(solveFor)
   
-  if solveFor.length == 0
-    return # nothing to solve
+  if cellArray.length == 0
+    return true # nothing to solve
   
   # our initial guess (i.e. current values)
-  initial = solveFor.map (cell) ->
-    return cell()
+  initial = []
+  cellArray.forEach (cell) ->
+    v = cell()
+    if v.length
+      initial.push(v...)
+    else
+      initial.push(v)
+  
+  setValues = (values) ->
+    i = 0
+    cellArray.forEach (cell) ->
+      v = cell()
+      if v.length
+        cell(values[i...i+v.length])
+        i += v.length
+      else
+        cell(values[i])
+        i += 1
   
   # objective to solve
   objective = (x) ->
     # set the values
-    solveFor.forEach (cell, i) ->
-      cell(x[i])
+    setValues(x)
     
     # add up the total error
     totalError = 0
@@ -77,6 +92,7 @@ solve = (constraints) ->
   result = numeric.uncmin(objective, initial)
   
   if result.solution
+    setValues(result.solution)
     return true
   else
     # reset values
@@ -86,7 +102,7 @@ solve = (constraints) ->
 
 
 
-return {
+module.exports = {
   cell: makeCell
   solve: solve
 }

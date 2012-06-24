@@ -292,7 +292,7 @@
   };
 
   solve = function(constraints) {
-    var cell, id, initial, objective, result, solveFor;
+    var cell, cellArray, id, initial, objective, result, setValues, solveFor;
     solveFor = {};
     constraints.forEach(function(constraint) {
       return mergeInto(solveFor, collect(constraint));
@@ -302,16 +302,36 @@
       cell = solveFor[id];
       if (cell.constant) delete solveFor[id];
     }
-    solveFor = objValues(solveFor);
-    if (solveFor.length === 0) return;
-    initial = solveFor.map(function(cell) {
-      return cell();
+    cellArray = objValues(solveFor);
+    if (cellArray.length === 0) return true;
+    initial = [];
+    cellArray.forEach(function(cell) {
+      var v;
+      v = cell();
+      if (v.length) {
+        return initial.push.apply(initial, v);
+      } else {
+        return initial.push(v);
+      }
     });
+    setValues = function(values) {
+      var i;
+      i = 0;
+      return cellArray.forEach(function(cell) {
+        var v;
+        v = cell();
+        if (v.length) {
+          cell(values.slice(i, (i + v.length)));
+          return i += v.length;
+        } else {
+          cell(values[i]);
+          return i += 1;
+        }
+      });
+    };
     objective = function(x) {
       var totalError;
-      solveFor.forEach(function(cell, i) {
-        return cell(x[i]);
-      });
+      setValues(x);
       totalError = 0;
       constraints.forEach(function(constraint) {
         var error;
@@ -323,6 +343,7 @@
     };
     result = numeric.uncmin(objective, initial);
     if (result.solution) {
+      setValues(result.solution);
       return true;
     } else {
       initial.forEach(function(originalValue, i) {
@@ -332,7 +353,7 @@
     }
   };
 
-  return {
+  module.exports = {
     cell: makeCell,
     solve: solve
   };
