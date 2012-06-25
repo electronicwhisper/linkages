@@ -10,7 +10,7 @@ module.exports = (mouseOn, selected) ->
   model.all.line.forEach (line) ->
     ctx.lineWidth = 1
     ctx.strokeStyle = "#000"
-    if line == mouseOn
+    if mouseOn.indexOf(line) != -1
       ctx.strokeStyle = "#f00"
     if selected.indexOf(line) != -1
       ctx.strokeStyle = "#00f"
@@ -22,8 +22,10 @@ module.exports = (mouseOn, selected) ->
   
   model.all.point.forEach (point) ->
     ctx.fillStyle = "#000"
-    if point == mouseOn
+    if mouseOn.indexOf(point) != -1
       ctx.fillStyle = "#f00"
+    if selected.indexOf(point) != -1
+      ctx.fillStyle = "#00f"
     
     ctx.beginPath()
     ctx.arc(point()[0], point()[1], 4.5, 0, Math.PI*2)

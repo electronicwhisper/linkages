@@ -1,3 +1,25 @@
+fix slope algorithms
+
+make pointEqual constraint
+make line tool
+
+
+
+
+
+
+remove
+  line if the two end points are the same
+  point on line constraint if point is an endpoint of the line
+
+
+
+
+
+
+
+
+
 Render fixed/unfixed points and lines appropriately
 Make a point merge function
 
@@ -5,8 +27,9 @@ Make a point merge function
 
 
 
-Make constraintSolver use arrays as well (to do vector math)
-Make lines point to distance/slope constraints (as opposed to the other way around)
+
+
+
 
 
 

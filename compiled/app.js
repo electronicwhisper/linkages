@@ -51,7 +51,7 @@
 }).call(this)({"app": function(exports, require, module) {(function() {
 
   module.exports = function() {
-    var click, constraintTypes, cs, dragMove, dragging, find, model, mouseDown, mouseMove, mouseOn, mousePos, mouseUp, potentialClick, redraw, render, selected, solve, util;
+    var addSelection, click, constrainWithMouse, constraintTypes, cs, dragMove, dragging, find, model, mouseDown, mouseMove, mouseOn, mousePos, mouseUp, potentialClick, redraw, render, selected, solve, toggleSelection, util;
     model = require("./model");
     cs = require("./constraintSolver");
     render = require("./render");
@@ -63,7 +63,7 @@
       canvas = document.getElementById("c");
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
-      n = 3;
+      n = 5;
       ps = (function() {
         _results = [];
         for (var _i = 0; 0 <= n ? _i < n : _i > n; 0 <= n ? _i++ : _i--){ _results.push(_i); }
@@ -77,9 +77,26 @@
         });
       });
     })();
-    mouseOn = false;
+    mouseOn = [];
     mousePos = cs.cell([0, 0]);
+    mousePos.constant = true;
     selected = [];
+    addSelection = function(objs) {
+      return objs.forEach(function(obj) {
+        if (selected.indexOf(obj) === -1) return selected.push(obj);
+      });
+    };
+    toggleSelection = function(objs) {
+      return objs.forEach(function(obj) {
+        var i;
+        i = selected.indexOf(obj);
+        if (i === -1) {
+          return selected.push(obj);
+        } else {
+          return selected.splice(i, 1);
+        }
+      });
+    };
     solve = function() {
       return cs.solve(model.all.constraint);
     };
@@ -96,6 +113,16 @@
       solve();
       return redraw();
     }, 1000);
+    constrainWithMouse = function(point) {
+      var offset;
+      offset = numeric.sub(point(), mousePos());
+      return model.constraint({
+        constraintType: "dragMouse",
+        point: point,
+        mouse: mousePos,
+        offset: offset
+      });
+    };
     dragging = false;
     potentialClick = false;
     mouseMove = function(pos) {
@@ -107,21 +134,38 @@
       return redraw();
     };
     mouseDown = function(pos) {
-      return redraw();
-    };
-    mouseUp = function(pos) {};
-    click = function(pos) {
-      if (mouseOn && mouseOn.type === "line") {
-        if (key.command) {
-          if (selected.indexOf(mouseOn) === -1) {
-            selected.push(mouseOn);
-          } else {
-            selected.splice(selected.indexOf(mouseOn), 1);
-          }
-        } else {
-          selected = [mouseOn];
+      if (key.command) {
+        toggleSelection(mouseOn);
+      } else {
+        if (!mouseOn.every(function(obj) {
+          return selected.indexOf(obj) !== -1;
+        })) {
+          selected = [];
+          addSelection(mouseOn);
         }
       }
+      if (selected.length > 0) {
+        dragging = [];
+        selected.forEach(function(obj) {
+          if (obj.type === "point") {
+            return dragging.push(constrainWithMouse(obj));
+          } else if (obj.type === "line") {
+            dragging.push(constrainWithMouse(obj.p1));
+            return dragging.push(constrainWithMouse(obj.p2));
+          }
+        });
+      }
+      return redraw();
+    };
+    mouseUp = function(pos) {
+      if (dragging) {
+        return dragging.forEach(function(constraint) {
+          return constraint.remove();
+        });
+      }
+    };
+    click = function(pos) {
+      if (mouseOn.length === 0) selected = [];
       return redraw();
     };
     window.onmousemove = function(e) {
@@ -313,6 +357,9 @@
     },
     "fixSlope": function(constraint) {
       return numeric.sqr(numeric.area(constraint.slope, constraint.line.slope()));
+    },
+    "dragMouse": function(constraint) {
+      return numeric.sqr(numeric.distance(numeric.add(constraint.mouse(), constraint.offset), constraint.point()));
     }
   };
 
@@ -340,13 +387,12 @@
         return closest = point;
       }
     });
+    if (closest) return [closest];
+    closest = [];
     model.all.line.forEach(function(line) {
       var d;
       d = numeric.distancePointToLineSegment(pos, line.p1(), line.p2()) - lineThreshold;
-      if (d < minDistance) {
-        minDistance = d;
-        return closest = line;
-      }
+      if (d < 0) return closest.push(line);
     });
     return closest;
   };
@@ -436,7 +482,7 @@
     model.all.line.forEach(function(line) {
       ctx.lineWidth = 1;
       ctx.strokeStyle = "#000";
-      if (line === mouseOn) ctx.strokeStyle = "#f00";
+      if (mouseOn.indexOf(line) !== -1) ctx.strokeStyle = "#f00";
       if (selected.indexOf(line) !== -1) ctx.strokeStyle = "#00f";
       ctx.beginPath();
       ctx.moveTo(line.p1()[0], line.p1()[1]);
@@ -445,7 +491,8 @@
     });
     return model.all.point.forEach(function(point) {
       ctx.fillStyle = "#000";
-      if (point === mouseOn) ctx.fillStyle = "#f00";
+      if (mouseOn.indexOf(point) !== -1) ctx.fillStyle = "#f00";
+      if (selected.indexOf(point) !== -1) ctx.fillStyle = "#00f";
       ctx.beginPath();
       ctx.arc(point()[0], point()[1], 4.5, 0, Math.PI * 2);
       return ctx.fill();

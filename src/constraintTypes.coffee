@@ -15,4 +15,7 @@ module.exports = {
     return e
   "fixSlope": (constraint) ->
     return numeric.sqr(numeric.area(constraint.slope, constraint.line.slope()))
+  "dragMouse": (constraint) ->
+    # return numeric.sqr(numeric.distance([20,20], constraint.point()))
+    return numeric.sqr(numeric.distance(numeric.add(constraint.mouse(), constraint.offset), constraint.point()))
 }

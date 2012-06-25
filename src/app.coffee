@@ -15,7 +15,7 @@ module.exports = () ->
     width = canvas.width = window.innerWidth
     height = canvas.height = window.innerHeight
     
-    n = 3
+    n = 5
     ps = [0...n].map () -> model.point([Math.random() * width, Math.random() * height])
     ps.forEach (p1, i) ->
       ps[i+1...n].forEach (p2) ->
@@ -63,12 +63,22 @@ module.exports = () ->
   # 
   # 
   # 
-  mouseOn = false # keep track of what point or line the mouse is on
+  mouseOn = [] # keep track of what point or line the mouse is on
   mousePos = cs.cell([0, 0])
+  mousePos.constant = true
   
   selected = []
-  
-  
+  addSelection = (objs) ->
+    objs.forEach (obj) ->
+      if selected.indexOf(obj) == -1
+        selected.push(obj)
+  toggleSelection = (objs) ->
+    objs.forEach (obj) ->
+      i = selected.indexOf(obj)
+      if i == -1
+        selected.push(obj)
+      else
+        selected.splice(i, 1)
   
   solve = () ->
     cs.solve(model.all.constraint)
@@ -99,9 +109,28 @@ module.exports = () ->
     #   line: model.all.line[0]
     #   slope: [1, 0]
     # })
+    # model.constraint({
+    #   constraintType: "dragMouse"
+    #   point: model.all.point[0]
+    #   mouse: mousePos
+    #   offset: [10, 20]
+    # })
     solve()
     redraw()
   , 1000)
+  
+  
+  
+  
+  constrainWithMouse = (point) ->
+    offset = numeric.sub(point(), mousePos())
+    model.constraint({
+      constraintType: "dragMouse"
+      point: point
+      mouse: mousePos
+      offset: offset
+    })
+  
   
   
   
@@ -117,6 +146,23 @@ module.exports = () ->
     redraw()
   
   mouseDown = (pos) ->
+    if key.command
+      toggleSelection(mouseOn)
+    else
+      if !mouseOn.every((obj) -> selected.indexOf(obj) != -1)
+        selected = []
+        addSelection(mouseOn)
+    
+    if selected.length > 0
+      dragging = []
+      selected.forEach (obj) ->
+        if obj.type == "point"
+          dragging.push constrainWithMouse(obj)
+        else if obj.type == "line"
+          dragging.push constrainWithMouse(obj.p1)
+          dragging.push constrainWithMouse(obj.p2)
+    
+    
     # if g.isNode(mouseOn, "point")
     #   point = mouseOn
     #   
@@ -126,6 +172,9 @@ module.exports = () ->
     redraw()
   
   mouseUp = (pos) ->
+    if dragging
+      dragging.forEach (constraint) ->
+        constraint.remove()
     # if dragging
     #   dragging.mouseConstraint.remove()
     #   # hack
@@ -135,14 +184,8 @@ module.exports = () ->
     #   point.get("y").set("isConstant", constrained)
   
   click = (pos) ->
-    if mouseOn && mouseOn.type == "line"
-      if key.command
-        if selected.indexOf(mouseOn) == -1
-          selected.push(mouseOn)
-        else
-          selected.splice(selected.indexOf(mouseOn), 1)
-      else
-        selected = [mouseOn]
+    if mouseOn.length == 0
+      selected = []
     redraw()
   # 
   # 
