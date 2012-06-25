@@ -22,6 +22,12 @@ numeric.distancePointToLineSegment = (p, a, b) ->
   p2 = numeric.projectPointToLineSegment(p, a, b)
   return numeric.distance(p, p2)
 
+numeric.sqr = (x) -> x*x
 
+# finds the area of the outer product of v1 and v2 (i.e. parallelogram formed by them)
+# note: can be negative
+numeric.area = (v1, v2) ->
+  # for now assumes both 2-dimensional
+  v1[0]*v2[1] - v1[1]*v2[0]
 
 module.exports = {}

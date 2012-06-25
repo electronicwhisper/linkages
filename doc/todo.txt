@@ -33,3 +33,10 @@ Fix points on top of each other
 
 Constrain point on line
   intersection (point on 2 lines)
+
+
+
+Uniqueness
+  Line on its two points
+  Line's distance constraint
+  Line's slope constraint

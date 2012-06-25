@@ -1,27 +1,22 @@
 util = require("./util")
+model = require("./model")
 
 pointThreshold = 10
 lineThreshold = 4
 
 # finds the closest point or line to x, y or returns false
-module.exports = (g, x, y) ->
+module.exports = (pos) ->
   minDistance = 0
   closest = false
   
-  g.all("point").forEach (point) ->
-    px = point.get("x").get("v")
-    py = point.get("y").get("v")
-    d = numeric.distance([px, py], [x, y]) - pointThreshold
+  model.all.point.forEach (point) ->
+    d = numeric.distance(point(), pos) - pointThreshold
     if d < minDistance
       minDistance = d
       closest = point
   
-  g.all("line").forEach (line) ->
-    l1x = line.get("p1").get("x").get("v")
-    l1y = line.get("p1").get("y").get("v")
-    l2x = line.get("p2").get("x").get("v")
-    l2y = line.get("p2").get("y").get("v")
-    d = numeric.distancePointToLineSegment([x, y], [l1x, l1y], [l2x, l2y]) - lineThreshold
+  model.all.line.forEach (line) ->
+    d = numeric.distancePointToLineSegment(pos, line.p1(), line.p2()) - lineThreshold
     if d < minDistance
       minDistance = d
       closest = line
